@@ -1,0 +1,55 @@
+services:
+  # MQTT broker
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"   # MQTT/TCP  (thiết bị, automation, logger)
+      - "9001:9001"   # WebSocket (dashboard trên trình duyệt)
+    volumes:
+      - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./broker/acl.conf:/mosquitto/config/acl.conf:ro
+      - mosquitto-data:/mosquitto/data
+    restart: unless-stopped
+
+  # Web server tĩnh cho dashboard -> http://localhost:8080
+  dashboard:
+    image: nginx:alpine
+    container_name: mqtt-dashboard
+    ports:
+      - "8080:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+    depends_on:
+      - mosquitto
+
+  # --- Chạy kèm bằng: docker compose --profile full up -d ---
+  # (mặc định không bật để khi thuyết trình chạy trên terminal cho thấy log)
+  automation:
+    image: python:3.12-alpine
+    container_name: smarthome-automation
+    profiles: ["full"]
+    working_dir: /app
+    volumes:
+      - ./automation:/app/automation
+      - ./requirements.txt:/app/requirements.txt:ro
+    command: sh -c "pip install -q -r requirements.txt && python -u automation/automation.py --host mosquitto"
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+  simulator:
+    image: python:3.12-alpine
+    container_name: smarthome-simulator
+    profiles: ["full"]
+    working_dir: /app
+    volumes:
+      - ./devices:/app/devices:ro
+      - ./requirements.txt:/app/requirements.txt:ro
+    command: sh -c "pip install -q -r requirements.txt && python -u devices/home_sim.py --host mosquitto --quiet"
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:

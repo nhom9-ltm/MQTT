@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+venv/
+.venv/
+
+# Dữ liệu sinh ra khi chạy
+*.db
+*.db-journal
+*.csv
+
+# Thông tin bí mật — mỗi người tự tạo
+.env
+broker/passwd
+esp32/**/secrets.h

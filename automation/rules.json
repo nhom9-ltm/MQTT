@@ -1,0 +1,136 @@
+[
+  {
+    "id": "living_hot",
+    "name": "Phòng khách nóng → bật điều hòa",
+    "description": "Nhiệt độ > 31°C khi có người ở nhà và điều hòa đang tắt",
+    "enabled": true,
+    "trigger": {"device": "living/climate", "field": "temperature", "op": ">", "value": 31},
+    "conditions": [
+      {"mode": ["home"]},
+      {"device": "living/ac", "field": "on", "op": "==", "value": false}
+    ],
+    "actions": [
+      {"device": "living/ac", "set": {"on": true, "mode": "cool", "target": 26}},
+      {"notify": "Phòng khách {temperature}°C — đã bật điều hòa 26°C", "level": "info"}
+    ],
+    "cooldown": 120
+  },
+  {
+    "id": "gas_leak",
+    "name": "Rò rỉ gas → ngắt bếp, bật quạt hút",
+    "description": "Cảm biến gas nhà bếp báo động",
+    "enabled": true,
+    "trigger": {"device": "kitchen/gas", "field": "alarm", "op": "==", "value": true},
+    "actions": [
+      {"device": "kitchen/stove-plug", "set": {"on": false}},
+      {"device": "kitchen/hood-fan", "set": {"on": true, "speed": 3}},
+      {"notify": "Phát hiện khí gas {ppm} ppm ở nhà bếp! Đã ngắt bếp điện và bật quạt hút", "level": "critical"}
+    ]
+  },
+  {
+    "id": "porch_light",
+    "name": "Có người ở cửa buổi tối → bật đèn hiên 2 phút",
+    "description": "Cảm biến chuyển động lối vào, từ 17:30 đến 06:00",
+    "enabled": true,
+    "trigger": {"device": "entrance/motion", "field": "motion", "op": "==", "value": true},
+    "conditions": [{"time": {"after": "17:30", "before": "06:00"}}],
+    "actions": [
+      {"device": "entrance/porch-light", "set": {"on": true}},
+      {"delay": 120},
+      {"device": "entrance/porch-light", "set": {"on": false}}
+    ]
+  },
+  {
+    "id": "intrusion_door",
+    "name": "Cửa mở khi vắng nhà / ban đêm → báo động",
+    "description": "Bật toàn bộ đèn và gửi cảnh báo",
+    "enabled": true,
+    "trigger": {"device": "entrance/door", "field": "open", "op": "==", "value": true},
+    "conditions": [{"mode": ["away", "night"]}],
+    "actions": [
+      {"notify": "Cửa chính bị mở khi đang ở chế độ an ninh!", "level": "critical"},
+      {"type": "light", "set": {"on": true, "brightness": 100}}
+    ]
+  },
+  {
+    "id": "intrusion_motion",
+    "name": "Chuyển động khi vắng nhà → báo động",
+    "description": "Cảm biến chuyển động phòng khách khi không có ai ở nhà",
+    "enabled": true,
+    "trigger": {"device": "living/motion", "field": "motion", "op": "==", "value": true},
+    "conditions": [{"mode": ["away"]}],
+    "actions": [
+      {"notify": "Phát hiện chuyển động trong phòng khách khi vắng nhà!", "level": "critical"},
+      {"device": "living/light", "set": {"on": true, "brightness": 100}}
+    ],
+    "cooldown": 60
+  },
+  {
+    "id": "living_idle",
+    "name": "Không ai trong phòng khách 2 phút → tắt đèn, quạt",
+    "description": "Tiết kiệm điện khi không có chuyển động",
+    "enabled": true,
+    "trigger": {"device": "living/motion", "field": "motion", "op": "==", "value": false, "for": 120},
+    "conditions": [{"device": "living/light", "field": "on", "op": "==", "value": true}],
+    "actions": [
+      {"device": "living/light", "set": {"on": false}},
+      {"device": "living/fan", "set": {"on": false}},
+      {"notify": "Phòng khách không có người 2 phút — đã tắt đèn và quạt", "level": "info"}
+    ]
+  },
+  {
+    "id": "night_lock",
+    "name": "23:00 tự khóa cửa nếu quên",
+    "description": "Kiểm tra khóa cửa chính lúc 23:00",
+    "enabled": true,
+    "trigger": {"at": "23:00"},
+    "conditions": [{"device": "entrance/lock", "field": "locked", "op": "==", "value": false}],
+    "actions": [
+      {"device": "entrance/lock", "set": {"locked": true}},
+      {"notify": "23:00 — cửa chính chưa khóa, đã tự động khóa", "level": "warn"}
+    ]
+  },
+  {
+    "id": "lab_hot",
+    "name": "[ESP32] Lab > 30°C → bật quạt",
+    "description": "Nắm tay vào DHT22 để thấy relay quạt đóng",
+    "enabled": true,
+    "trigger": {"device": "lab/climate", "field": "temperature", "op": ">", "value": 30},
+    "actions": [
+      {"device": "lab/fan", "set": {"on": true}},
+      {"notify": "Lab {temperature}°C — đã bật quạt (ESP32)", "level": "info"}
+    ]
+  },
+  {
+    "id": "lab_cool",
+    "name": "[ESP32] Lab < 29°C → tắt quạt",
+    "description": "Hysteresis 1°C tránh relay bật/tắt liên tục",
+    "enabled": true,
+    "trigger": {"device": "lab/climate", "field": "temperature", "op": "<", "value": 29},
+    "conditions": [{"device": "lab/fan", "field": "on", "op": "==", "value": true}],
+    "actions": [{"device": "lab/fan", "set": {"on": false}}]
+  },
+  {
+    "id": "lab_motion",
+    "name": "[ESP32] Có chuyển động → bật đèn lab 30 giây",
+    "description": "Cảm biến PIR điều khiển relay đèn",
+    "enabled": true,
+    "trigger": {"device": "lab/motion", "field": "motion", "op": "==", "value": true},
+    "actions": [
+      {"device": "lab/light", "set": {"on": true}},
+      {"delay": 30},
+      {"device": "lab/light", "set": {"on": false}}
+    ]
+  },
+  {
+    "id": "lab_gas",
+    "name": "[ESP32] MQ-2 báo gas → bật quạt + cảnh báo",
+    "description": "Thổi khí ga bật lửa (không bật lửa!) gần cảm biến",
+    "enabled": true,
+    "trigger": {"device": "lab/gas", "field": "alarm", "op": "==", "value": true},
+    "actions": [
+      {"device": "lab/fan", "set": {"on": true}},
+      {"notify": "MQ-2 ở Lab báo khí gas {ppm} ppm!", "level": "critical"}
+    ]
+  }
+]

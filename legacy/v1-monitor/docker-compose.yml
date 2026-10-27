@@ -1,0 +1,27 @@
+services:
+  # MQTT broker
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"   # MQTT/TCP  (cảm biến, logger)
+      - "9001:9001"   # WebSocket (dashboard trên trình duyệt)
+    volumes:
+      - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./broker/acl.conf:/mosquitto/config/acl.conf:ro
+      - mosquitto-data:/mosquitto/data
+    restart: unless-stopped
+
+  # Web server tĩnh cho dashboard -> http://localhost:8080
+  dashboard:
+    image: nginx:alpine
+    container_name: mqtt-dashboard
+    ports:
+      - "8080:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+    depends_on:
+      - mosquitto
+
+volumes:
+  mosquitto-data:

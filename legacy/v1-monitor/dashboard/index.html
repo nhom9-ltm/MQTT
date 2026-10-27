@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Giám sát Nhiệt độ & Độ ẩm — MQTT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3a2 2 0 0 0-2 2v8.3a4 4 0 1 0 4 0V5a2 2 0 0 0-2-2z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17" r="1.8" fill="currentColor"/></svg>
+    </div>
+    <div>
+      <h1>Giám sát Nhiệt độ &amp; Độ ẩm</h1>
+      <p class="sub">MQTT · Mosquitto · Chart.js</p>
+    </div>
+  </div>
+
+  <form class="conn" id="connForm" autocomplete="off">
+    <input id="brokerUrl" aria-label="Broker URL" spellcheck="false">
+    <input id="topicPrefix" aria-label="Topic prefix" value="iot" class="short" title="Topic prefix">
+    <button type="submit" id="btnConnect" class="btn primary">Kết nối</button>
+    <button type="button" id="btnDemo" class="btn ghost" title="Chạy giả lập ngay trong trình duyệt, không cần broker">Demo</button>
+    <span class="pill" id="connPill"><i></i><span>Chưa kết nối</span></span>
+  </form>
+</header>
+
+<main>
+  <!-- KPI -->
+  <section class="kpis">
+    <div class="kpi"><span class="k-label">Thiết bị online</span><span class="k-val" id="kOnline">0/0</span></div>
+    <div class="kpi"><span class="k-label">Client trên broker <em>$SYS</em></span><span class="k-val" id="kClients">—</span></div>
+    <div class="kpi"><span class="k-label">Message broker đã nhận <em>$SYS</em></span><span class="k-val" id="kMsgs">—</span></div>
+    <div class="kpi"><span class="k-label">Broker uptime <em>$SYS</em></span><span class="k-val" id="kUptime">—</span></div>
+    <div class="kpi"><span class="k-label">Message / phút (dashboard)</span><span class="k-val" id="kRate">0</span></div>
+  </section>
+
+  <!-- Devices -->
+  <section>
+    <div class="sec-head">
+      <h2>Thiết bị</h2>
+      <span class="hint">Tự phát hiện qua wildcard <code id="wcHint">iot/+/+/#</code> · bấm thẻ để xem biểu đồ</span>
+    </div>
+    <div class="devices" id="devices">
+      <div class="empty" id="emptyDevices">
+        Chưa có thiết bị. Chạy <code>python sensor/sensor_sim.py --count 3</code> hoặc bấm <b>Demo</b>.
+      </div>
+    </div>
+  </section>
+
+  <!-- Charts -->
+  <section class="charts">
+    <div class="panel big">
+      <div class="panel-head">
+        <h3 id="chartTitle">Biểu đồ thời gian thực</h3>
+        <div class="seg" id="rangeSeg">
+          <button data-range="60" >1 phút</button>
+          <button data-range="300" class="on">5 phút</button>
+          <button data-range="900">15 phút</button>
+        </div>
+      </div>
+      <div class="chart-box"><canvas id="mainChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>So sánh nhiệt độ các phòng</h3></div>
+      <div class="chart-box"><canvas id="cmpChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="bottom">
+    <!-- Alerts -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Cảnh báo</h3>
+        <div class="thresholds">
+          <label>T &gt; <input type="number" id="thT" value="35" step="0.5"> °C</label>
+          <label>H &gt; <input type="number" id="thH" value="85" step="1"> %</label>
+        </div>
+      </div>
+      <ul class="alerts" id="alerts"><li class="muted">Chưa có cảnh báo.</li></ul>
+    </div>
+
+    <!-- Message log -->
+    <div class="panel big">
+      <div class="panel-head">
+        <h3>Message log</h3>
+        <div class="log-tools">
+          <input id="logFilter" placeholder="Lọc topic…" spellcheck="false">
+          <label class="chk"><input type="checkbox" id="logPause"> Tạm dừng</label>
+          <button class="btn ghost sm" id="logClear">Xóa</button>
+        </div>
+      </div>
+      <div class="log-wrap">
+        <table class="log">
+          <thead><tr><th>Giờ</th><th>Topic</th><th>QoS</th><th>Retain</th><th>Payload</th></tr></thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Dashboard client có LWT riêng: <code id="dashWill">iot/_dashboard/…/status</code> · keep-alive <span id="kaInfo">30</span>s
+  </footer>
+</main>
+
+<template id="tplDevice">
+  <article class="dev" tabindex="0">
+    <div class="dev-top">
+      <div>
+        <div class="dev-room"></div>
+        <div class="dev-id"></div>
+      </div>
+      <span class="badge"></span>
+    </div>
+    <div class="dev-vals">
+      <div class="v t"><span class="num">—</span><span class="unit">°C</span><span class="lbl">Nhiệt độ</span></div>
+      <div class="v h"><span class="num">—</span><span class="unit">%</span><span class="lbl">Độ ẩm</span></div>
+    </div>
+    <canvas class="spark" height="34"></canvas>
+    <div class="dev-meta">
+      <span class="seen">—</span>
+      <span class="tags"></span>
+    </div>
+    <div class="dev-cmd">
+      <select class="sel-interval" title="Đổi chu kỳ gửi (publish lệnh xuống topic cmd)">
+        <option value="1">1s</option><option value="2" selected>2s</option>
+        <option value="5">5s</option><option value="10">10s</option>
+      </select>
+      <button class="btn sm ghost" data-act="toggle">Tạm dừng</button>
+      <button class="btn sm ghost" data-act="spike" title="Giả lập nhiệt độ tăng vọt">Sự cố</button>
+      <button class="btn sm danger" data-act="crash" title="Mất kết nối đột ngột → LWT">Mất điện</button>
+    </div>
+  </article>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>

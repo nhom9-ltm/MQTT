@@ -1,0 +1,66 @@
+[
+  {
+    "id": "home",
+    "name": "Về nhà",
+    "icon": "🏠",
+    "actions": [
+      {"mode": "home"},
+      {"device": "entrance/lock", "set": {"locked": false}},
+      {"device": "living/light", "set": {"on": true, "brightness": 80}},
+      {"device": "living/curtain", "set": {"position": 100}},
+      {"device": "living/ac", "set": {"on": true, "mode": "cool", "target": 26}}
+    ]
+  },
+  {
+    "id": "away",
+    "name": "Ra khỏi nhà",
+    "icon": "🚪",
+    "actions": [
+      {"type": "light", "set": {"on": false}},
+      {"type": "fan", "set": {"on": false}},
+      {"type": "ac", "set": {"on": false}},
+      {"device": "living/tv-plug", "set": {"on": false}},
+      {"type": "curtain", "set": {"position": 0}},
+      {"type": "lock", "set": {"locked": true}},
+      {"delay": 3},
+      {"mode": "away"}
+    ]
+  },
+  {
+    "id": "sleep",
+    "name": "Đi ngủ",
+    "icon": "🌙",
+    "actions": [
+      {"mode": "night"},
+      {"type": "light", "except": ["bedroom/light"], "set": {"on": false}},
+      {"device": "bedroom/light", "set": {"on": true, "brightness": 10}},
+      {"device": "bedroom/ac", "set": {"on": true, "mode": "cool", "target": 27}},
+      {"device": "living/ac", "set": {"on": false}},
+      {"device": "living/tv-plug", "set": {"on": false}},
+      {"type": "curtain", "set": {"position": 0}},
+      {"type": "lock", "set": {"locked": true}}
+    ]
+  },
+  {
+    "id": "morning",
+    "name": "Buổi sáng",
+    "icon": "☀️",
+    "actions": [
+      {"mode": "home"},
+      {"type": "curtain", "set": {"position": 100}},
+      {"device": "bedroom/light", "set": {"on": true, "brightness": 80}},
+      {"device": "bedroom/ac", "set": {"on": false}}
+    ]
+  },
+  {
+    "id": "movie",
+    "name": "Xem phim",
+    "icon": "🎬",
+    "actions": [
+      {"device": "living/light", "set": {"on": true, "brightness": 15}},
+      {"device": "living/curtain", "set": {"position": 0}},
+      {"device": "living/tv-plug", "set": {"on": true}},
+      {"device": "living/ac", "set": {"on": true, "mode": "cool", "target": 25}}
+    ]
+  }
+]
