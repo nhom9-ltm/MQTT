@@ -1,0 +1,19 @@
+/* Bổ sung cho trang lịch sử — dùng lại biến màu của style.css */
+.hist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 16px 20px 32px; max-width: 1400px; margin: 0 auto; }
+.hist .panel { padding: 14px 16px; }
+.hist .wide, .hist .kpis { grid-column: 1 / -1; }
+.hist .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.hist h2 { font-size: 14px; margin: 0; font-weight: 600; }
+.hist select, .conn select { background: var(--bg-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; }
+.chart-box { position: relative; height: 280px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.kpi b { display: block; font-size: 24px; font-family: var(--mono); }
+.kpi span { color: var(--muted); font-size: 12px; }
+.alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 260px; overflow: auto; }
+.alerts li { display: flex; gap: 10px; padding: 8px 10px; background: var(--bg-2); border-radius: 8px; font-size: 13px; }
+.alerts li.critical { border-left: 3px solid var(--bad); }
+.alerts time { color: var(--muted); font-family: var(--mono); white-space: nowrap; }
+.empty { color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; }
+a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+@media (max-width: 800px) { .hist { grid-template-columns: 1fr; } }

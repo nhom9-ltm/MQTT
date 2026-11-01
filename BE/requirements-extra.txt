@@ -1,0 +1,4 @@
+# Thư viện cho phần mở rộng (API lịch sử). Cài thêm:  pip install -r requirements-extra.txt
+# notifier/ chỉ dùng thư viện chuẩn + paho-mqtt nên không cần gì thêm.
+fastapi>=0.110
+uvicorn>=0.29
