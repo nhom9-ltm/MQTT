@@ -10,5 +10,10 @@ venv/
 
 # Thông tin bí mật — mỗi người tự tạo
 .env
-broker/passwd
+BE/broker/passwd
+BE/broker/credentials.env
 esp32/**/secrets.h
+
+# Dữ liệu broker khi chạy không Docker (BE/broker/mosquitto.local.conf)
+BE/broker/data/*
+!BE/broker/data/.gitkeep
