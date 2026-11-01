@@ -833,6 +833,8 @@
   el.alertClear.addEventListener("click", () => (el.alerts.innerHTML = '<li class="muted">Chưa có thông báo.</li>'));
 
   resetAll();
-  if (qs.get("demo") === "1") startDemo();
+  // Bản công khai trên GitHub Pages không có broker riêng -> tự chạy demo (trừ khi truyền ?broker=...)
+  const PUBLIC_DEMO = location.hostname.endsWith("github.io") && !qs.get("broker");
+  if (qs.get("demo") === "1" || PUBLIC_DEMO) startDemo();
   else if (typeof mqtt !== "undefined") connect();
 })();
