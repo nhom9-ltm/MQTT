@@ -27,17 +27,17 @@ thêm, bớt hoặc thay một phần mà không phải sửa các phần còn l
 
 ## 1. Bắt đầu nhanh
 
-> Chạy trên Windows không có Docker: xem [CACH_CHAY.md](CACH_CHAY.md). Thành viên mới tham gia nhóm: xem [HUONG_DAN_NHOM.md](HUONG_DAN_NHOM.md).
+> Chạy trên Windows không có Docker: xem [CACH_CHAY.md](CACH_CHAY.md). Thành viên mới tham gia nhóm: xem [HUONG_DAN_NHOM.md](HUONG_DAN_NHOM.md). Thông báo Telegram/Email, xác thực + ACL, biểu đồ lịch sử: xem [MO_RONG.md](MO_RONG.md).
 
 **Yêu cầu:** Python 3.9+, và Docker *hoặc* Mosquitto cài sẵn.
 
 ```bash
-pip install -r requirements.txt
+pip install -r BE/requirements.txt
 
 docker compose up -d                       # broker :1883 / :9001 + dashboard http://localhost:8080
-python devices/home_sim.py                 # terminal 1 — 20 thiết bị giả lập
-python automation/automation.py            # terminal 2 — luật & kịch bản
-python logger/logger.py                    # terminal 3 — (tùy chọn) lưu lịch sử
+python BE/run_simulator.py                 # terminal 1 — 20 thiết bị giả lập
+python BE/run_automation.py            # terminal 2 — luật & kịch bản
+python BE/run_logger.py                    # terminal 3 — (tùy chọn) lưu lịch sử
 ```
 
 Mở **http://localhost:8080**. Dashboard tự kết nối `ws://localhost:9001` và tự phát hiện mọi thiết bị.
@@ -46,16 +46,16 @@ Mở **http://localhost:8080**. Dashboard tự kết nối `ws://localhost:9001`
 <summary><b>Không dùng Docker?</b></summary>
 
 1. Cài Mosquitto: <https://mosquitto.org/download/> · macOS `brew install mosquitto` · Ubuntu `sudo apt install mosquitto mosquitto-clients`
-2. Trong `broker/mosquitto.conf`, đổi `persistence_location` thành một thư mục có thật (ví dụ `./data/`).
-3. Chạy broker: `mosquitto -c broker/mosquitto.conf -v`
-4. Phục vụ dashboard: `cd dashboard && python -m http.server 8080`
-5. Chạy `home_sim.py`, `automation.py`, `logger.py` như trên.
+2. Trong `BE/broker/mosquitto.conf`, đổi `persistence_location` thành một thư mục có thật (ví dụ `./data/`).
+3. Chạy broker: `mosquitto -c BE/broker/mosquitto.conf -v`
+4. Phục vụ dashboard: `python -m http.server 8080 --directory FE`
+5. Chạy `BE/run_simulator.py`, `BE/run_automation.py`, `BE/run_logger.py` như trên.
 </details>
 
 <details>
 <summary><b>Chỉ muốn xem giao diện (không cần broker)</b></summary>
 
-Mở `dashboard/index.html` rồi bấm **Demo** (hoặc thêm `?demo=1` vào URL). Broker, 20 thiết bị và
+Mở `FE/index.html` rồi bấm **Demo** (hoặc thêm `?demo=1` vào URL). Broker, 20 thiết bị và
 automation engine đều được giả lập trong trình duyệt, dùng cùng topic và cùng luật. Nên dùng làm
 phương án dự phòng khi thuyết trình.
 </details>
@@ -79,23 +79,49 @@ Khi thuyết trình, nên chạy bằng terminal như ở trên để khán gi�
  │ ESP32 node (lab)  │ ──state───▶ │                  │ ──state───────▶ │ Dashboard web        │
  │ relay, DHT22, PIR │ ◀───set──── │                  │ ◀──set──────────│ điều khiển, biểu đồ  │
  ├───────────────────┤             │    Mosquitto     │                 └──────────────────────┘
- │ home_sim.py       │ ──state───▶ │  retain · LWT    │ MQTT :1883      ┌──────────────────────┐
- │ 20 thiết bị ảo    │ ◀───set──── │  QoS · session   │ ◀─────────────▶ │ automation.py        │
+ │ run_simulator.py  │ ──state───▶ │  retain · LWT    │ MQTT :1883      ┌──────────────────────┐
+ │ 20 thiết bị ảo    │ ◀───set──── │  QoS · session   │ ◀─────────────▶ │ run_automation.py    │
  └───────────────────┘             │                  │                 │ luật + kịch bản      │
                                    │                  │ ──────────────▶ ├──────────────────────┤
-                                   └──────────────────┘                 │ logger.py → SQLite   │
+                                   └──────────────────┘                 │ run_logger → SQLite  │
                                                                         └──────────────────────┘
 ```
 
 | Thành phần | File | Vai trò |
 |---|---|---|
-| Broker | `broker/mosquitto.conf`, `acl.conf` | Mosquitto: cổng 1883 (MQTT/TCP), 9001 (WebSocket), persistence, `$SYS`, ACL mẫu |
-| Thiết bị giả lập | `devices/home_sim.py` | 4 phòng, 20 thiết bị; mỗi thiết bị là một MQTT client có LWT riêng |
+| Broker | `BE/broker/mosquitto.conf`, `BE/broker/acl.conf` | Mosquitto: cổng 1883 (MQTT/TCP), 9001 (WebSocket), persistence, `$SYS`, ACL mẫu |
+| Thiết bị giả lập | `BE/mock/devices.py`, `BE/mock/house.py`, `BE/controller/simulator_controller.py` | 4 phòng, 20 thiết bị; mỗi thiết bị là một MQTT client có LWT riêng |
 | Thiết bị thật | `esp32/esp32_smarthome_node/` | ESP32: 2 relay, DHT22, PIR, công tắc từ, MQ-2, nút nhấn |
-| Automation | `automation/automation.py` + `rules.json`, `scenes.json` | Chạy luật, kịch bản, quản lý chế độ nhà |
-| Dashboard | `dashboard/` | Giao diện web (MQTT.js + Chart.js); `demo.js` dùng cho chế độ Demo |
-| Logger | `logger/logger.py` | Lưu state, lệnh và cảnh báo vào `logger/smarthome.db`; xuất CSV, in báo cáo |
+| Automation | `BE/service/automation_service.py`, `BE/controller/automation_controller.py` + `BE/config/rules.json`, `scenes.json` | Chạy luật, kịch bản, quản lý chế độ nhà |
+| Dashboard | `FE/` | Giao diện web (MQTT.js + Chart.js); `FE/mock/demo.js` dùng cho chế độ Demo |
+| Logger | `BE/controller/logger_controller.py`, `BE/service/logger_service.py` | Lưu state, lệnh và cảnh báo vào `BE/data/smarthome.db`; xuất CSV, in báo cáo |
+| Thông báo | `BE/controller/notifier_controller.py` | Telegram / Email cho cảnh báo `critical` ([MO_RONG.md](MO_RONG.md)) |
+| API lịch sử | `BE/controller/api_controller.py` | Biểu đồ lịch sử cho `FE/history.html` ([MO_RONG.md](MO_RONG.md)) |
 | Bản cũ | `legacy/v1-monitor/` | Phiên bản 1: chỉ giám sát nhiệt độ/độ ẩm |
+
+### Cấu trúc thư mục
+
+```
+FE/                      giao diện (phục vụ bằng web server tĩnh)
+├── index.html, history.html
+├── css/                 style.css (màu, thẻ, nút) · history.css
+├── layout/              layout.css (bố cục, lưới, responsive) · sidebar_wireframe.html
+├── js/                  app.js (MQTT + điều khiển) · auth.js · history.js
+└── mock/                demo.js (broker + thiết bị + automation giả lập trong trình duyệt)
+
+BE/                      backend Python (chạy từ thư mục gốc repo: python BE/run_<tên>.py)
+├── run_simulator.py · run_automation.py · run_logger.py · run_notifier.py · run_api.py   điểm vào
+├── controller/          nhận MQTT / HTTP / tham số dòng lệnh, chuyển cho service
+├── service/             nghiệp vụ: luật tự động, ghi log, thông báo, số liệu lịch sử
+├── repository/          truy cập SQLite
+├── mock/                thiết bị & căn nhà giả lập, dữ liệu mẫu, Telegram/SMTP giả
+├── common/              tham số CLI, tạo MQTT client, đường dẫn dùng chung
+├── config/              rules.json, scenes.json
+├── broker/              mosquitto*.conf, acl.conf, setup_auth.py, test_acl.py
+└── data/                smarthome.db và file sinh ra khi chạy (không commit)
+
+esp32/                   firmware ESP32 thật          legacy/   phiên bản 1 (chỉ giám sát)
+```
 
 ### Hai nguyên tắc thiết kế
 
@@ -163,7 +189,7 @@ mà nó không hiểu.
 
 | Tính năng | Thể hiện ở đâu | Cách thấy trên hệ thống |
 |---|---|---|
-| **Topic phân cấp & wildcard** | `home/<phòng>/<id>/<loại>`, subscribe `+` | Chạy `home_sim.py --rooms living` trước, sau đó chạy thêm các phòng khác: phòng mới tự xuất hiện |
+| **Topic phân cấp & wildcard** | `home/<phòng>/<id>/<loại>`, subscribe `+` | Chạy `BE/run_simulator.py --rooms living` trước, sau đó chạy thêm các phòng khác: phòng mới tự xuất hiện |
 | **Retained message** | `status`, `state`, chế độ nhà | F5 dashboard thì trạng thái hiện ngay; cột *Retain* ✓ trong log |
 | **Last Will (LWT)** | thiết bị ảo, ESP32, automation, dashboard | Bấm **Mất điện**: sau ≤ 15 giây thẻ chuyển *Offline · LWT* |
 | **LWT dùng chung cho nhiều thiết bị** | ESP32 đặt LWT trên `esp32-01/status`; thiết bị con khai `"node"` | Rút điện ESP32: cả 6 thẻ Lab chuyển *Bo mạch offline* |
@@ -173,7 +199,7 @@ mà nó không hiểu.
 | **Persistent session** | logger: `clean_session=False`, client id cố định | Tắt logger 30 giây rồi bật lại: `session_present=True` và các dòng `↺ nhận bù` |
 | **Tách rời publisher / subscriber** | automation chỉ là một client như bao client khác | Tắt automation: thiết bị và dashboard vẫn chạy, chỉ mất luật tự động |
 | **$SYS** | `sys_interval 5` | Ô KPI *Client trên broker* |
-| **Xác thực & ACL** | `broker/acl.conf` | Dashboard chỉ được ghi `…/set`, không thể giả mạo `state` của thiết bị |
+| **Xác thực & ACL** | `BE/broker/acl.conf` | Dashboard chỉ được ghi `…/set`, không thể giả mạo `state` của thiết bị |
 
 > **Vì sao ESP32 cần "node"?** Mỗi kết nối MQTT chỉ khai báo được **một** Last Will. ESP32 dùng một kết nối
 > cho 6 thiết bị, nên LWT gắn với bo mạch. Dashboard và automation coi một thiết bị con là offline khi bo
@@ -184,7 +210,7 @@ mà nó không hiểu.
 
 ## 6. Luật tự động & kịch bản
 
-### Cấu trúc một luật (`automation/rules.json`)
+### Cấu trúc một luật (`BE/config/rules.json`)
 
 ```json
 {
@@ -223,7 +249,7 @@ Trong `notify`, có thể chèn giá trị từ thiết bị đã kích hoạt l
 | [ESP32] Chuyển động | PIR phát hiện | Bật relay đèn 30 giây |
 | [ESP32] Gas | MQ-2 vượt ngưỡng | Bật quạt, cảnh báo đỏ |
 
-### Kịch bản (`automation/scenes.json`)
+### Kịch bản (`BE/config/scenes.json`)
 
 | Kịch bản | Hành động |
 |---|---|
@@ -233,9 +259,9 @@ Trong `notify`, có thể chèn giá trị từ thiết bị đã kích hoạt l
 | ☀️ **Buổi sáng** | Chế độ *Ở nhà*, mở rèm, bật đèn phòng ngủ, tắt điều hòa |
 | 🎬 **Xem phim** | Đèn phòng khách 15%, đóng rèm, bật TV, điều hòa 25°C |
 
-Bật/tắt luật trên dashboard được lưu thẳng vào `rules.json`. Nếu sửa file bằng tay thì cần khởi động lại engine.
+Bật/tắt luật trên dashboard được lưu thẳng vào `BE/config/rules.json`. Nếu sửa file bằng tay thì cần khởi động lại engine.
 
-> Chế độ Demo dùng **bản sao** các luật và kịch bản này, nằm trong `dashboard/demo.js`.
+> Chế độ Demo dùng **bản sao** các luật và kịch bản này, nằm trong `FE/mock/demo.js`.
 > Sửa `rules.json` thì nhớ sửa cả ở đó.
 
 ---
@@ -280,9 +306,9 @@ Bật/tắt luật trên dashboard được lưu thẳng vào `rules.json`. Nế
 
 | Script | Tham số hay dùng |
 |---|---|
-| `devices/home_sim.py` | `--rooms living,kitchen` chỉ chạy vài phòng · `--qos 0/1/2` · `--keepalive 10` · `--interval 5` chu kỳ gửi số liệu cảm biến · `--revive 20` · `--no-random` tắt chuyển động ngẫu nhiên · `--quiet` / `--verbose` |
-| `automation/automation.py` | `--rules file.json` · `--scenes file.json` · `--client-id` |
-| `logger/logger.py` | `--report` in báo cáo · `--export file.csv --table messages\|climate\|energy\|commands` · `--db` |
+| `BE/run_simulator.py` | `--rooms living,kitchen` chỉ chạy vài phòng · `--qos 0/1/2` · `--keepalive 10` · `--interval 5` chu kỳ gửi số liệu cảm biến · `--revive 20` · `--no-random` tắt chuyển động ngẫu nhiên · `--quiet` / `--verbose` |
+| `BE/run_automation.py` | `--rules file.json` · `--scenes file.json` · `--client-id` |
+| `BE/run_logger.py` | `--report` in báo cáo · `--export file.csv --table messages\|climate\|energy\|commands` · `--db` |
 | Chung | `--host` · `--port` · `--prefix` (mặc định `home`) · `--username` / `--password` (hoặc biến môi trường `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`, `MQTT_PASS`) |
 | Dashboard (URL) | `?broker=ws://192.168.1.10:9001` · `&prefix=home` · `&demo=1` |
 
@@ -302,8 +328,8 @@ mosquitto_pub -h localhost -t 'home/living/fan/status' -r -n      # xóa retaine
 Đổi prefix để không trùng với nhóm khác:
 
 ```bash
-python devices/home_sim.py      --host test.mosquitto.org --prefix nhom7_home
-python automation/automation.py --host test.mosquitto.org --prefix nhom7_home
+python BE/run_simulator.py      --host test.mosquitto.org --prefix nhom7_home
+python BE/run_automation.py --host test.mosquitto.org --prefix nhom7_home
 # Dashboard: broker = wss://test.mosquitto.org:8081 , prefix = nhom7_home
 ```
 
@@ -314,14 +340,14 @@ python automation/automation.py --host test.mosquitto.org --prefix nhom7_home
 | # | Nội dung | Thao tác |
 |---|---|---|
 | 1 | **Kiến trúc** (1') | Sơ đồ và bảng topic. Nhấn mạnh: các thành phần không biết nhau, chỉ biết broker. |
-| 2 | **Discovery & retained** (1') | Chạy `home_sim.py`: các phòng tự xuất hiện. F5 dashboard: trạng thái hiện ngay (Retain ✓). |
+| 2 | **Discovery & retained** (1') | Chạy `BE/run_simulator.py`: các phòng tự xuất hiện. F5 dashboard: trạng thái hiện ngay (Retain ✓). |
 | 3 | **Điều khiển 2 chiều** (1.5') | Bật đèn, kéo độ sáng, chỉnh điều hòa; chỉ trên Message log `…/set` (vàng) rồi đến `…/state`. Bấm nút BOOT trên ESP32: dashboard cập nhật theo. |
 | 4 | **Automation** (2') | Bấm **Nắng nóng** ở phòng khách: điều hòa tự bật, nhiệt độ hạ dần trên biểu đồ. Bấm **Rò rỉ gas**: cảnh báo đỏ, bếp ngắt, quạt hút bật. Với ESP32: nắm tay vào DHT22, relay quạt đóng. |
 | 5 | **Kịch bản & chế độ** (1.5') | **Ra khỏi nhà**: mọi thứ tắt, cửa khóa, chuyển *Vắng nhà*. Bấm **Mở cửa**: báo động xâm nhập, toàn bộ đèn bật. |
 | 6 | **LWT** (1.5') | **Mất điện** một thiết bị: *Offline · LWT* rồi tự online lại. Rút điện ESP32: cả phòng Lab offline. Ctrl+C automation: dashboard thấy engine offline. |
-| 7 | **Persistent session** (1') | Tắt logger 30 giây, bật lại: `session_present=True` và `↺ nhận bù`. Kết thúc bằng `logger.py --report`. |
+| 7 | **Persistent session** (1') | Tắt logger 30 giây, bật lại: `session_present=True` và `↺ nhận bù`. Kết thúc bằng `BE/run_logger.py --report`. |
 
-**Mẹo:** chạy `home_sim.py --no-random` để chuyển động ngẫu nhiên không làm rối demo, và luôn mở sẵn
+**Mẹo:** chạy `BE/run_simulator.py --no-random` để chuyển động ngẫu nhiên không làm rối demo, và luôn mở sẵn
 một tab `?demo=1` để dự phòng.
 
 ---
@@ -330,22 +356,22 @@ một tab `?demo=1` để dự phòng.
 
 | Hiện tượng | Nguyên nhân & cách xử lý |
 |---|---|
-| Dashboard báo *Mất kết nối broker* | Broker chưa chạy hoặc chưa mở cổng 9001 (WebSocket). Kiểm tra `docker compose ps`, hoặc chạy `mosquitto -c broker/mosquitto.conf -v`. |
-| *Không tải được MQTT.js* | Máy không có Internet nên không tải được thư viện từ CDN. Tải `mqtt.min.js` và `chart.umd.min.js` về thư mục `dashboard/` rồi sửa 2 thẻ `<script>`. |
+| Dashboard báo *Mất kết nối broker* | Broker chưa chạy hoặc chưa mở cổng 9001 (WebSocket). Kiểm tra `docker compose ps`, hoặc chạy `mosquitto -c BE/broker/mosquitto.conf -v`. |
+| *Không tải được MQTT.js* | Máy không có Internet nên không tải được thư viện từ CDN. Tải `mqtt.min.js` và `chart.umd.min.js` về thư mục `FE/` rồi sửa 2 thẻ `<script>`. |
 | ESP32 báo `lỗi rc=-2` | Không tới được broker: sai `MQTT_HOST`, ESP32 và máy không cùng mạng, hoặc firewall chặn cổng 1883 (Windows: cho phép `mosquitto.exe` qua Windows Defender Firewall). |
 | ESP32 báo `lỗi rc=5` | Broker đang bật xác thực: điền `MQTT_USER` / `MQTT_PASS`. |
-| Kịch bản / chế độ bị mờ | Automation engine chưa chạy: `python automation/automation.py`. |
+| Kịch bản / chế độ bị mờ | Automation engine chưa chạy: `python BE/run_automation.py`. |
 | Thiết bị cũ không biến mất | Retained `status` vẫn còn trên broker. Xóa bằng `mosquitto_pub -t 'home/<phòng>/<id>/status' -r -n`. |
 | Logger không "nhận bù" | Sensor phải publish QoS ≥ 1 (mặc định `--qos 1`), logger phải giữ nguyên `--client-id`, và broker không được khởi động lại trong lúc logger tắt (trừ khi bật persistence). |
-| `ModuleNotFoundError: paho` | Chạy `pip install -r requirements.txt`. |
+| `ModuleNotFoundError: paho` | Chạy `pip install -r BE/requirements.txt`. |
 | Lỗi tiếng Việt trên terminal Windows | Chạy `chcp 65001` hoặc đặt biến môi trường `PYTHONIOENCODING=utf-8`. |
 
 ---
 
 ## 11. Hướng mở rộng
 
-- **Bảo mật:** bật xác thực + ACL (`broker/acl.conf` có sẵn quyền cho từng loại client); bật TLS (8883 / wss 8443) bằng chứng chỉ tự ký.
-- **Dữ liệu:** nạp `logger/smarthome.db` (các view `climate`, `energy`, `commands`) vào Grafana; hoặc thay SQLite bằng InfluxDB.
+- **Bảo mật:** bật xác thực + ACL (`BE/broker/acl.conf` có sẵn quyền cho từng loại client); bật TLS (8883 / wss 8443) bằng chứng chỉ tự ký.
+- **Dữ liệu:** nạp `BE/data/smarthome.db` (các view `climate`, `energy`, `commands`) vào Grafana; hoặc thay SQLite bằng InfluxDB.
 - **MQTT v5:** message expiry cho lệnh; response topic để thiết bị xác nhận lệnh; shared subscription `$share/loggers/home/#` để chạy nhiều logger song song.
 - **Tích hợp:** chuyển `status` sang định dạng MQTT Discovery để Home Assistant tự nhận thiết bị.
 - **Thông báo:** gửi cảnh báo `critical` qua Telegram bot hoặc email.

@@ -64,7 +64,7 @@ Sau đó lên GitHub bấm **Compare & pull request**, nhờ một bạn khác x
 - **Không** `git push --force` lên `main` — sẽ xóa mất code của người khác.
 - Luôn `git pull` trước khi bắt đầu làm để tránh xung đột.
 - **Không** commit file bí mật hay file sinh ra khi chạy: `secrets.h`, `.env`, `*.db`, `*.csv`,
-  `broker/data/` (đã có trong `.gitignore`, chỉ cần đừng `git add -f`).
+  `BE/broker/data/` (đã có trong `.gitignore`, chỉ cần đừng `git add -f`).
 - Bị xung đột (conflict) khi pull/merge mà không chắc cách sửa → hỏi nhóm trước, đừng xóa bừa.
 
 ### Ai làm phần nào
@@ -74,12 +74,15 @@ theo thư mục mà ít khi đụng nhau:
 
 | Thư mục | Nội dung |
 |---|---|
-| `dashboard/` | Giao diện web (HTML/CSS/JS, MQTT.js) |
-| `devices/` | Thiết bị giả lập bằng Python |
-| `automation/` | Luật tự động (`rules.json`) và kịch bản (`scenes.json`) |
-| `logger/` | Lưu lịch sử vào SQLite, xuất báo cáo/CSV |
+| `FE/` | Giao diện web: `index.html`, `history.html`, `css/` (màu, thẻ), `layout/` (bố cục, wireframe), `js/` (MQTT.js, logic giao diện), `mock/` (chế độ Demo trong trình duyệt) |
+| `BE/controller/` | Lớp vào: nhận MQTT/HTTP và tham số dòng lệnh (simulator, automation, logger, notifier, API) |
+| `BE/service/` | Xử lý nghiệp vụ: luật tự động, ghi log, gửi thông báo, số liệu lịch sử |
+| `BE/repository/` | Truy cập SQLite |
+| `BE/mock/` | Thiết bị giả lập, dữ liệu mẫu, server Telegram/SMTP giả |
+| `BE/config/` | Luật tự động (`rules.json`) và kịch bản (`scenes.json`) |
+| `BE/broker/` | Cấu hình Mosquitto, phân quyền (ACL), tạo tài khoản |
+| `BE/common/`, `BE/data/` | Tham số/đường dẫn dùng chung; dữ liệu sinh ra khi chạy (`*.db`) |
 | `esp32/` | Code Arduino cho mạch ESP32 thật |
-| `broker/` | Cấu hình Mosquitto, phân quyền (ACL) |
 
 Thống nhất trong nhóm ai phụ trách thư mục nào; khi cần đổi **tên topic** hay **định dạng JSON** thì báo
 cả nhóm, vì mọi thành phần đều phụ thuộc vào đó (xem [README § 4](README.md#4-thiết-kế-topic)).

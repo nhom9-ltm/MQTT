@@ -7,8 +7,8 @@ services:
       - "1883:1883"   # MQTT/TCP  (thiết bị, automation, logger)
       - "9001:9001"   # WebSocket (dashboard trên trình duyệt)
     volumes:
-      - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./broker/acl.conf:/mosquitto/config/acl.conf:ro
+      - ./BE/broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./BE/broker/acl.conf:/mosquitto/config/acl.conf:ro
       - mosquitto-data:/mosquitto/data
     restart: unless-stopped
 
@@ -19,7 +19,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./dashboard:/usr/share/nginx/html:ro
+      - ./FE:/usr/share/nginx/html:ro
     depends_on:
       - mosquitto
 
@@ -31,9 +31,8 @@ services:
     profiles: ["full"]
     working_dir: /app
     volumes:
-      - ./automation:/app/automation
-      - ./requirements.txt:/app/requirements.txt:ro
-    command: sh -c "pip install -q -r requirements.txt && python -u automation/automation.py --host mosquitto"
+      - ./BE:/app/BE            # ghi được: automation lưu trạng thái bật/tắt luật vào BE/config/rules.json
+    command: sh -c "pip install -q -r BE/requirements.txt && python -u BE/run_automation.py --host mosquitto"
     depends_on:
       - mosquitto
     restart: unless-stopped
@@ -44,9 +43,8 @@ services:
     profiles: ["full"]
     working_dir: /app
     volumes:
-      - ./devices:/app/devices:ro
-      - ./requirements.txt:/app/requirements.txt:ro
-    command: sh -c "pip install -q -r requirements.txt && python -u devices/home_sim.py --host mosquitto --quiet"
+      - ./BE:/app/BE:ro
+    command: sh -c "pip install -q -r BE/requirements.txt && python -u BE/run_simulator.py --host mosquitto --quiet"
     depends_on:
       - mosquitto
     restart: unless-stopped

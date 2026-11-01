@@ -74,7 +74,7 @@ Mọi lệnh bên dưới đều chạy **trong thư mục `legacy/v1-monitor/`*
 
 ```bash
 cd legacy/v1-monitor
-pip install "paho-mqtt>=2.0,<3"      # hoặc: pip install -r ../../requirements.txt
+pip install "paho-mqtt>=2.0,<3"      # hoặc: pip install -r ../../BE/requirements.txt
 ```
 
 ### Cách 1 — Docker (khuyên dùng)
