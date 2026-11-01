@@ -74,7 +74,7 @@ theo thư mục mà ít khi đụng nhau:
 
 | Thư mục | Nội dung |
 |---|---|
-| `FE/` | Giao diện web: `index.html`, `history.html`, `css/` (màu, thẻ), `layout/` (bố cục, wireframe), `js/` (MQTT.js, logic giao diện), `mock/` (chế độ Demo trong trình duyệt) |
+| `FE/` | Giao diện web: `index.html` (gồm cả trang Lịch sử `#/history`), `history.html` (chỉ chuyển hướng), `css/` (màu, thẻ), `layout/` (bố cục, wireframe), `js/` (MQTT.js, logic giao diện), `mock/` (chế độ Demo trong trình duyệt) |
 | `BE/controller/` | Lớp vào: nhận MQTT/HTTP và tham số dòng lệnh (simulator, automation, logger, notifier, API) |
 | `BE/service/` | Xử lý nghiệp vụ: luật tự động, ghi log, gửi thông báo, số liệu lịch sử |
 | `BE/repository/` | Truy cập SQLite |

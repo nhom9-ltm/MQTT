@@ -1,4 +1,4 @@
-# Prompt 01 — Trang chủ (Tổng quan) + khung sidebar dùng chung
+# Prompt 01 — Trang chủ + khung sidebar dùng chung
 
 > Đây là prompt **nền tảng**. Các prompt 02–07 đều dựa vào khung sidebar/thanh trên/router mà prompt này tạo ra, nên phải làm xong prompt này trước.
 
@@ -37,9 +37,9 @@ Tài liệu tham chiếu bắt buộc đọc:
 
 | Trang | Id | Chứa (di chuyển từ HTML hiện có, giữ nguyên id bên trong) |
 |---|---|---|
-| Tổng quan | `page-home` | khối KPI (`.kpis`), "Kịch bản nhanh" (mới, xem B), khối biểu đồ (`.charts`) |
+| Trang chủ | `page-home` | khối KPI (`.kpis`), **Chế độ nhà** (`#modeSeg`, `#enginePill`), "Kịch bản nhanh" (mới, xem B), khối biểu đồ (`.charts`) |
 | Thiết bị | `page-devices` | section chứa `#roomTabs`, `#wcHint`, `#rooms`, `#emptyDevices` |
-| Kịch bản & chế độ | `page-scenes` | `section.control` (`#modeSeg`, `#enginePill`, `#scenes`, `#sceneTopic`) |
+| Kịch bản | `page-scenes` | panel Kịch bản (`#scenes`, `#sceneTopic`) — Chế độ nhà không còn ở đây |
 | Luật tự động | `page-rules` | panel chứa `#rules` |
 | Thông báo | `page-alerts` | panel chứa `#alerts`, `#alertClear` |
 | Message log | `page-log` | panel chứa `#logBody`, `#logFilter`, `#logHideState`, `#logPause`, `#logClear` |
@@ -48,7 +48,7 @@ Tài liệu tham chiếu bắt buộc đọc:
 
 **A2. Sidebar** — do `FE/js/nav.js` render vào `<aside id="sidebar" data-active="…">` (để `history.html` dùng lại ở prompt 06). Gồm:
 - Logo + tên "Nhà thông minh" + dòng phụ "MQTT · Mosquitto · ESP32" (lấy từ `.brand` hiện có; `.brand` chuyển vào sidebar).
-- Mục: **Tổng quan** (`#/home`) · **Thiết bị** (`#/devices`) · **Kịch bản & chế độ** (`#/scenes`) · **Luật tự động** (`#/rules`) · **Thông báo** (`#/alerts`) · nhóm nhãn **Dữ liệu** → **Lịch sử** (liên kết `history.html`) · nhóm nhãn **Hệ thống** → **Message log** (`#/log`).
+- Mục: **Trang chủ** (`#/home`) · **Thiết bị** (`#/devices`) · **Kịch bản** (`#/scenes`) · **Luật tự động** (`#/rules`) · **Thông báo** (`#/alerts`) · nhóm nhãn **Dữ liệu** → **Lịch sử** (liên kết `history.html`) · nhóm nhãn **Hệ thống** → **Message log** (`#/log`).
 - Mỗi mục có icon SVG inline (stroke `currentColor`, cùng kiểu icon logo hiện có) và chỗ cho huy hiệu: `<span class="badge" data-badge="devices|rules|alerts" hidden>`. Prompt này **chỉ tạo chỗ**, không đổ dữ liệu (prompt 02, 04, 05 làm).
 - Trên `history.html`, các mục điều hướng là liên kết `index.html#/…`; trên `index.html` là hash route.
 - Chân sidebar: dời `#connPill` và `#btnDemo` (giữ nguyên id, `btnDemo` là `type="button"`) xuống đây + nút thu gọn «/».
@@ -59,7 +59,7 @@ Tài liệu tham chiếu bắt buộc đọc:
 **A4. Responsive (wireframe mục 1–3).**
 - ≥ 1024px: sidebar mở rộng 240px.
 - 768–1023px: tự thu gọn (chỉ icon, 60px, tooltip tên mục khi rê chuột).
-- < 768px: sidebar ẩn; nút ☰ ở thanh trên mở ngăn kéo có lớp phủ; **thanh tab dưới** gồm 4 mục: Tổng quan, Thiết bị, Kịch bản, Thêm (Thêm = mở ngăn kéo). Đóng ngăn kéo bằng Esc, bấm lớp phủ, hoặc chọn mục.
+- < 768px: sidebar ẩn; nút ☰ ở thanh trên mở ngăn kéo có lớp phủ; **thanh tab dưới** gồm 4 mục: Trang chủ, Thiết bị, Kịch bản, Thêm (Thêm = mở ngăn kéo). Đóng ngăn kéo bằng Esc, bấm lớp phủ, hoặc chọn mục.
 - Nút thu gọn do người dùng bấm được nhớ trong `localStorage` khóa `sh.sidebar.collapsed`.
 - Truy cập: `<nav aria-label="Điều hướng chính">`, điều hướng được bằng Tab, focus nhìn thấy rõ.
 
@@ -70,18 +70,19 @@ Tài liệu tham chiếu bắt buộc đọc:
 
 **A6. Chân trang** `.foot` (LWT, keep-alive…) giữ nguyên nội dung, hiện ở cuối vùng nội dung của mọi trang.
 
-### B. Trang Tổng quan `#/home` (wireframe mục 4, hàng "Tổng quan")
+### B. Trang chủ `#/home` (wireframe mục 4, hàng "Trang chủ")
 
 - **KPI:** giữ **cả 8 ô** hiện có (`#kTemp`, `#kHum`, `#kPower`, `#kLights`, `#kDoor`, `#kOnline`, `#kClients`, `#kRate`), xếp lưới theo `layout.css`.
+- **Chế độ nhà:** khối "Chế độ" (`#modeSeg` + `#enginePill`) nằm ở Trang chủ, cùng một hàng với "Kịch bản nhanh" (lưới 2 cột như `.control`). Không còn ở trang Kịch bản.
 - **Kịch bản nhanh:** hộp tiêu đề "Kịch bản nhanh" chứa bản **sao** các nút từ `#scenes`. Dùng `MutationObserver` trên `#scenes` để dựng lại khi nội dung đổi; bấm bản sao thì gọi `.click()` lên nút gốc (cùng `data-scene`); trạng thái `disabled` đồng bộ theo nút gốc. Không đổi logic gửi lệnh.
 - **Biểu đồ:** giữ `#climateChart`, `#powerChart`, `#rangeSeg`, `#energyHint` (không đổi id); thu nhỏ chiều cao khung biểu đồ trên trang này còn khoảng **180px** (chỉ áp dụng cho `#page-home`).
-- Bố cục theo wireframe: KPI → Kịch bản nhanh → 2 biểu đồ cạnh nhau.
+- Bố cục: KPI → (Chế độ | Kịch bản nhanh) → 2 biểu đồ cạnh nhau.
 
 ### C. Điểm CHƯA được chốt — KHÔNG tự làm, phải ghi vào "Cần xác nhận"
 
 1. Ô **tìm thiết bị** ở thanh trên (có trong wireframe nhưng chưa được duyệt).
 2. Các mục **"Biểu đồ trực tiếp"** và **"Broker & bảo mật"** trong wireframe: chưa có prompt → **không thêm vào menu**. Vì vậy form kết nối broker và 2 biểu đồ vẫn nằm ở chỗ nêu trên.
-3. **6 thẻ thiết bị** trên trang Tổng quan trong wireframe: không thể làm mà không sửa `app.js` hoặc nhân bản thẻ → **không làm**.
+3. **6 thẻ thiết bị** trên Trang chủ trong wireframe: không thể làm mà không sửa `app.js` hoặc nhân bản thẻ → **không làm**.
 4. Có giữ nhãn nhóm **"Hệ thống"** hay bỏ.
 5. Nhúng trang Lịch sử vào cùng khung hay giữ trang riêng (xem prompt 06).
 

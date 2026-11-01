@@ -7,7 +7,7 @@ các script cũ chạy như trước). Làm theo thứ tự:
 |:-:|---|---|---|
 | 1 | [Thông báo Telegram / Email](#1-thông-báo-telegram--email) | `BE/controller/notifier_controller.py`, `BE/service/notification_service.py`, `BE/service/notify_channels.py` | `python BE/run_notifier.py` |
 | 2 | [Xác thực + ACL](#2-xác-thực--acl) | `BE/broker/mosquitto.secure.conf`, `docker-compose.secure.yml`, `BE/broker/setup_auth.py`, `BE/broker/test_acl.py`, `FE/js/auth.js` | xem bên dưới |
-| 3 | [Lịch sử + biểu đồ](#3-lịch-sử--biểu-đồ) | `BE/controller/api_controller.py`, `BE/service/history_service.py`, `BE/repository/history_repository.py`, `BE/mock/seed_demo.py`, `FE/history.html`, `FE/js/history.js`, `FE/css/history.css` | `python BE/run_api.py` |
+| 3 | [Lịch sử + biểu đồ](#3-lịch-sử--biểu-đồ) | `BE/controller/api_controller.py`, `BE/service/history_service.py`, `BE/repository/history_repository.py`, `BE/mock/seed_demo.py`, `FE/index.html` (trang `#/history`), `FE/js/history.js`, `FE/css/history.css` | `python BE/run_api.py` |
 
 Thay đổi nhỏ ở file cũ (chỉ thêm, không sửa): `BE/broker/acl.conf` (+ user `notifier`), `.gitignore`
 (+ `BE/broker/credentials.env`), `FE/index.html` (+ nút **Lịch sử**, + thẻ `<script src="js/auth.js">`).
@@ -123,14 +123,14 @@ cho tới khi bạn mở lại bằng URL có `?user=…&pass=…`.
 ## 3. Lịch sử + biểu đồ
 
 ```
-run_logger.py ──ghi──▶ BE/data/smarthome.db ──(đọc, chỉ đọc)──▶ BE/run_api.py :8000 ──JSON──▶ FE/history.html
+run_logger.py ──ghi──▶ BE/data/smarthome.db ──(đọc, chỉ đọc)──▶ BE/run_api.py :8000 ──JSON──▶ FE/index.html#/history
 ```
 
 ```powershell
 pip install -r BE/requirements-extra.txt                 # fastapi + uvicorn
 python BE/run_api.py                       # từ thư mục gốc repo
 ```
-Mở `http://localhost:8080/history.html` (hoặc bấm nút **Lịch sử** trên dashboard). Trang hiển thị:
+Bấm mục **Lịch sử** ở sidebar của dashboard (hoặc mở `http://localhost:8080/#/history`; đường dẫn cũ `history.html` tự chuyển hướng tới đây). Sidebar và thanh trên được giữ nguyên, chỉ phần nội dung đổi. Trang hiển thị:
 nhiệt độ / độ ẩm theo phòng, điện năng theo ngày và theo thiết bị, thống kê ai ra lệnh, thiết bị bị
 điều khiển nhiều nhất, và các cảnh báo gần đây. Chọn khoảng 1 giờ / 24 giờ / 7 ngày ở góc phải.
 

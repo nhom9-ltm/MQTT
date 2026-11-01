@@ -9,6 +9,17 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="layout/layout.css">
   <link rel="stylesheet" href="layout/sidebar.css">
+  <link rel="stylesheet" href="css/history.css">
+  <link rel="stylesheet" href="css/scene-editor.css">
+  <script>
+    /* Chọn sẵn trang theo #hash TRƯỚC lần vẽ đầu tiên, để không nháy trang chủ rồi mới nhảy sang trang khác.
+       nav.js sẽ gỡ thuộc tính này khi router đã sẵn sàng. */
+    (function () {
+      var r = location.hash.replace(/^#\/?/, "").split("/")[0] || "home";
+      var ok = { home: 1, devices: 1, scenes: 1, rules: 1, alerts: 1, history: 1, log: 1 };
+      document.documentElement.setAttribute("data-route", ok[r] ? r : "home");
+    })();
+  </script>
   <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -17,6 +28,8 @@
 <div class="app-shell">
   <!-- Sidebar điều hướng bên trái (Prompt 01, 02) -->
   <aside id="sidebar"></aside>
+  <!-- nav.js đặt NGAY SAU sidebar để dựng menu trước lần vẽ đầu tiên (không bị trống rồi mới hiện) -->
+  <script src="js/nav.js"></script>
 
   <!-- Lớp phủ mờ đóng menu trên mobile -->
   <div class="drawer-scrim" id="drawerScrim"></div>
@@ -27,17 +40,16 @@
     <header class="topbar">
       <div class="topbar-left">
         <button type="button" class="btn-drawer" id="btnDrawer" aria-label="Mở menu">☰</button>
-        <div class="crumb" id="pageCrumb">Tổng quan</div>
-      </div>
-
-      <div class="topbar-right">
-        <!-- Chế độ nhà nhanh trên thanh trên (Prompt 01 - A5) -->
+        <div class="crumb" id="pageCrumb">Trang chủ</div>
+        <!-- Chế độ nhà nhanh trên thanh trên (Prompt 01 - A5), đặt ngay cạnh tên trang -->
         <div class="top-mode-seg" id="topModeSeg">
           <button type="button" class="top-mode-btn" data-mode="home">Ở nhà</button>
           <button type="button" class="top-mode-btn" data-mode="away">Vắng nhà</button>
           <button type="button" class="top-mode-btn" data-mode="night">Ban đêm</button>
         </div>
+      </div>
 
+      <div class="topbar-right">
         <!-- Nút icon chuông thông báo kế bên phần kết nối (Prompt 05 & User request) -->
         <a href="#/alerts" class="bell-btn" id="btnBell" aria-label="Thông báo" title="Xem thông báo">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -49,8 +61,9 @@
 
         <!-- Form kết nối (giữ nguyên tất cả id và phần tử cho app.js) -->
         <form class="conn" id="connForm" autocomplete="off">
-          <input id="brokerUrl" aria-label="Broker URL" spellcheck="false">
-          <input id="topicPrefix" aria-label="Topic prefix" class="short" title="Topic prefix">
+          <!-- Ẩn khỏi giao diện nhưng giữ id: app.js đọc/ghi giá trị địa chỉ broker và topic prefix qua 2 ô này -->
+          <input id="brokerUrl" type="hidden">
+          <input id="topicPrefix" type="hidden">
           <button type="submit" id="btnConnect" class="btn primary">Kết nối</button>
           <button type="button" id="btnDemo" class="btn ghost" title="Giả lập broker, thiết bị và automation ngay trong trình duyệt">Demo</button>
           <span class="pill" id="connPill"><i></i><span>Chưa kết nối</span></span>
@@ -62,7 +75,7 @@
     <div class="toasts" id="toasts" aria-live="assertive"></div>
 
     <main>
-      <!-- TRANG 1: TỔNG QUAN (Prompt 01) -->
+      <!-- TRANG 1: TRANG CHỦ (Prompt 01) -->
       <section class="page active" id="page-home">
         <!-- KPI -->
         <div class="kpis">
@@ -76,10 +89,23 @@
           <div class="kpi"><span class="k-label">Message / phút</span><span class="k-val" id="kRate">0</span></div>
         </div>
 
-        <!-- Kịch bản nhanh (Prompt 01 - B) -->
-        <div class="panel quick-scenes-panel">
-          <div class="panel-head"><h3>Kịch bản nhanh</h3></div>
-          <div class="scenes" id="quickScenes"><span class="muted">Đang tải kịch bản...</span></div>
+        <!-- Chế độ nhà + Kịch bản nhanh (chế độ được chuyển từ trang Kịch bản về Trang chủ) -->
+        <div class="control">
+          <div class="panel mode-panel">
+            <div class="panel-head">
+              <h3>Chế độ</h3>
+              <span class="pill sm" id="enginePill"><i></i><span>Automation: chưa thấy</span></span>
+            </div>
+            <div class="seg mode-seg" id="modeSeg">
+              <button data-mode="home">Ở nhà</button>
+              <button data-mode="away">Vắng nhà</button>
+              <button data-mode="night">Ban đêm</button>
+            </div>
+          </div>
+          <div class="panel quick-scenes-panel">
+            <div class="panel-head"><h3>Kịch bản nhanh</h3></div>
+            <div class="scenes" id="quickScenes"><span class="muted">Đang tải kịch bản...</span></div>
+          </div>
         </div>
 
         <!-- Biểu đồ -->
@@ -104,6 +130,26 @@
 
       <!-- TRANG 2: THIẾT BỊ (Prompt 02) -->
       <section class="page" id="page-devices">
+        <!-- Chế độ nhà + Kịch bản nhanh (bản sao của khối ở Trang chủ; nav.js đồng bộ và ủy quyền thao tác sang nút gốc,
+             nên các id #modeSeg / #enginePill / #scenes vẫn chỉ có một) -->
+        <div class="control">
+          <div class="panel mode-panel">
+            <div class="panel-head">
+              <h3>Chế độ</h3>
+              <span class="pill sm" data-engine-copy><i></i><span>Automation: chưa thấy</span></span>
+            </div>
+            <div class="seg mode-seg" data-mode-copy>
+              <button type="button" data-mode="home">Ở nhà</button>
+              <button type="button" data-mode="away">Vắng nhà</button>
+              <button type="button" data-mode="night">Ban đêm</button>
+            </div>
+          </div>
+          <div class="panel quick-scenes-panel">
+            <div class="panel-head"><h3>Kịch bản nhanh</h3></div>
+            <div class="scenes" data-scenes-copy><span class="muted">Đang tải kịch bản...</span></div>
+          </div>
+        </div>
+
         <div class="sec-head">
           <div class="tabs" id="roomTabs" role="tablist"><button class="on" data-room="all">Tất cả</button></div>
           <span class="hint">Tự phát hiện thiết bị qua wildcard <code id="wcHint">home/+/+/+</code></span>
@@ -115,25 +161,18 @@
         </div>
       </section>
 
-      <!-- TRANG 3: KỊCH BẢN & CHẾ ĐỘ (Prompt 03) -->
+      <!-- TRANG 3: KỊCH BẢN (Prompt 03) — phần Chế độ đã chuyển sang Trang chủ -->
       <section class="page" id="page-scenes">
-        <section class="control">
-          <div class="panel mode-panel">
-            <div class="panel-head">
-              <h3>Chế độ</h3>
-              <span class="pill sm" id="enginePill"><i></i><span>Automation: chưa thấy</span></span>
-            </div>
-            <div class="seg mode-seg" id="modeSeg">
-              <button data-mode="home">Ở nhà</button>
-              <button data-mode="away">Vắng nhà</button>
-              <button data-mode="night">Ban đêm</button>
+        <div class="panel scene-panel">
+          <div class="panel-head">
+            <h3>Kịch bản</h3>
+            <div class="head-actions">
+              <span class="hint">publish <code id="sceneTopic">home/_auto/scene/set</code></span>
+              <button type="button" class="btn primary sm" id="btnAddScene" title="Tạo kịch bản riêng gồm nhiều bước điều khiển">＋ Thêm kịch bản</button>
             </div>
           </div>
-          <div class="panel scene-panel">
-            <div class="panel-head"><h3>Kịch bản</h3><span class="hint">publish <code id="sceneTopic">home/_auto/scene/set</code></span></div>
-            <div class="scenes" id="scenes"><span class="muted">Chạy <code>python BE/run_automation.py</code> để có kịch bản.</span></div>
-          </div>
-        </section>
+          <div class="scenes" id="scenes"><span class="muted">Chạy <code>python BE/run_automation.py</code> để có kịch bản.</span></div>
+        </div>
       </section>
 
       <!-- TRANG 4: LUẬT TỰ ĐỘNG (Prompt 04) -->
@@ -149,6 +188,54 @@
         <div class="panel">
           <div class="panel-head"><h3>Thông báo</h3><button class="btn ghost sm" id="alertClear">Xóa</button></div>
           <ul class="alerts" id="alerts"><li class="muted">Chưa có thông báo.</li></ul>
+        </div>
+      </section>
+
+      <!-- TRANG: LỊCH SỬ — nằm trong cùng khung (giữ nguyên sidebar + thanh trên), dữ liệu lấy từ API BE/run_api.py -->
+      <section class="page" id="page-history">
+        <form class="panel hist-toolbar" id="histForm" autocomplete="off">
+          <label class="hist-field">API
+            <input id="apiUrl" aria-label="API URL" spellcheck="false" title="Địa chỉ API lịch sử">
+          </label>
+          <select id="histRange" aria-label="Khoảng thời gian">
+            <option value="1">1 giờ</option>
+            <option value="24" selected>24 giờ</option>
+            <option value="168">7 ngày</option>
+          </select>
+          <button type="submit" class="btn primary">Tải lại</button>
+          <span class="pill" id="apiPill"><i></i><span>Chưa tải</span></span>
+        </form>
+
+        <div class="kpis" id="histKpis"></div>
+
+        <div class="hist-grid">
+          <div class="panel wide">
+            <div class="panel-head">
+              <h3>Nhiệt độ &amp; độ ẩm</h3>
+              <select id="histRoom" aria-label="Phòng"></select>
+            </div>
+            <div class="chart-box"><canvas id="cClimate"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Điện năng theo ngày (kWh, ước tính)</h3></div>
+            <div class="chart-box"><canvas id="cEnergyDay"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Thiết bị tiêu thụ nhiều nhất (kWh)</h3></div>
+            <div class="chart-box"><canvas id="cEnergyDev"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Ai ra lệnh?</h3></div>
+            <div class="chart-box"><canvas id="cCmdSrc"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Thiết bị bị điều khiển nhiều nhất</h3></div>
+            <div class="chart-box"><canvas id="cCmdDev"></canvas></div>
+          </div>
+          <div class="panel wide">
+            <div class="panel-head"><h3>Cảnh báo gần đây</h3></div>
+            <ul class="alerts" id="histAlerts"></ul>
+          </div>
         </div>
       </section>
 
@@ -173,6 +260,39 @@
         </div>
       </section>
 
+      <!-- Hộp thoại thêm kịch bản (js/scene-editor.js dựng các bước bên trong) -->
+      <dialog id="sceneDialog" class="scene-dialog" aria-labelledby="sceneDialogTitle">
+        <form id="sceneForm" autocomplete="off" novalidate>
+          <header class="sd-head">
+            <h3 id="sceneDialogTitle">Thêm kịch bản</h3>
+            <button type="button" class="btn ghost sm" data-sd-close aria-label="Đóng">✕</button>
+          </header>
+          <div class="sd-body">
+            <div class="sd-name-row">
+              <label class="sd-field sd-grow">Tên kịch bản
+                <input id="sceneName" maxlength="40" placeholder="Ví dụ: Đọc sách">
+              </label>
+              <label class="sd-field sd-icon">Biểu tượng
+                <input id="sceneIcon" maxlength="4" placeholder="▶" list="sceneIcons">
+              </label>
+              <datalist id="sceneIcons">
+                <option value="📖"><option value="🍽️"><option value="🎵"><option value="🧹"><option value="🌅"><option value="🌃"><option value="🏃"><option value="💡">
+              </datalist>
+            </div>
+            <div class="sd-steps-head">
+              <h4>Các bước (chạy lần lượt từ trên xuống)</h4>
+              <button type="button" class="btn ghost sm" id="sceneAddStep">＋ Thêm bước</button>
+            </div>
+            <ol id="sceneSteps" class="sd-steps"></ol>
+            <p class="sd-err" id="sceneErr" role="alert" hidden></p>
+          </div>
+          <footer class="sd-foot">
+            <button type="button" class="btn ghost" data-sd-close>Hủy</button>
+            <button type="submit" class="btn primary" id="sceneSave">Lưu kịch bản</button>
+          </footer>
+        </form>
+      </dialog>
+
       <footer class="foot">
         Dashboard client có LWT riêng: <code id="dashWill">home/_dashboard/…/status</code> · keep-alive <span id="kaInfo">30</span>s ·
         lệnh gửi lên <code>…/set</code>, giao diện chỉ đổi khi thiết bị báo lại <code>…/state</code>
@@ -184,6 +304,8 @@
 <script src="js/auth.js"></script>
 <script src="mock/demo.js"></script>
 <script src="js/app.js"></script>
+<script src="js/history.js"></script>
+<script src="js/scene-editor.js"></script>
 <script src="js/nav.js"></script>
 </body>
 </html>

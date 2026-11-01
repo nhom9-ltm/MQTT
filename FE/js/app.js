@@ -832,6 +832,16 @@
   el.logClear.addEventListener("click", () => (el.logBody.innerHTML = ""));
   el.alertClear.addEventListener("click", () => (el.alerts.innerHTML = '<li class="muted">Chưa có thông báo.</li>'));
 
+  // Cho scene-editor.js (form thêm kịch bản) dùng chung kết nối MQTT và danh sách thiết bị đã phát hiện
+  window.SmartHomeApp = {
+    send: (suffix, obj) => send(`${state.prefix}/${suffix}`, obj),
+    devices: () => [...state.devices.values()].map((d) => ({
+      key: d.key, room: d.room, roomName: state.rooms.get(d.room)?.name || d.room,
+      id: d.id, name: d.name, type: d.type, online: effStatus(d) !== "offline" })),
+    scenes: () => (state.engine && state.engine.scenes) || [],
+    engineOnline: () => engineOnline(),
+  };
+
   resetAll();
   // Bản công khai trên GitHub Pages không có broker riêng -> tự chạy demo (trừ khi truyền ?broker=...)
   const PUBLIC_DEMO = location.hostname.endsWith("github.io") && !qs.get("broker");
