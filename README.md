@@ -27,7 +27,7 @@ thêm, bớt hoặc thay một phần mà không phải sửa các phần còn l
 
 ## 1. Bắt đầu nhanh
 
-> Chạy trên Windows không có Docker: xem [CACH_CHAY.md](CACH_CHAY.md). Thành viên mới tham gia nhóm: xem [HUONG_DAN_NHOM.md](HUONG_DAN_NHOM.md). Thông báo Telegram/Email, xác thực + ACL, biểu đồ lịch sử: xem [MO_RONG.md](MO_RONG.md).
+> Thông báo Telegram/Email, xác thực + ACL, biểu đồ lịch sử: xem [MO_RONG.md](MO_RONG.md).
 
 **Yêu cầu:** Python 3.9+, và Docker *hoặc* Mosquitto cài sẵn.
 

@@ -845,5 +845,6 @@
   resetAll();
   // Bản công khai trên GitHub Pages không có broker riêng -> tự chạy demo (trừ khi truyền ?broker=...)
   const PUBLIC_DEMO = location.hostname.endsWith("github.io") && !qs.get("broker");
-  if (qs.get("broker")) { if (typeof mqtt !== "undefined") connect(); } else { startDemo(); }
+  if (qs.get("demo") === "1" || PUBLIC_DEMO) startDemo();
+  else if (typeof mqtt !== "undefined") connect();
 })();
