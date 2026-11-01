@@ -1,4 +1,6 @@
-# Prompt 06 — Trang Lịch sử (áp dụng khung sidebar cho `history.html`)
+# Prompt 06 — Trang Lịch sử
+
+> **Cập nhật:** trang Lịch sử đã được nhúng vào `index.html` thành trang `#/history` (giữ nguyên sidebar + thanh trên); `history.html` chỉ còn chuyển hướng. Nội dung bên dưới là bản prompt gốc (giữ làm lịch sử), **không còn đúng** ở các điểm "giữ `history.html` là trang riêng".
 
 > **Điều kiện tiên quyết:** prompt 01 đã hoàn thành. Trước khi làm, kiểm tra `FE/js/nav.js` tồn tại và hỗ trợ render sidebar vào `<aside id="sidebar" data-active="…">` ở trang khác `index.html`. **Nếu thiếu: dừng lại và báo cáo, không tự làm thay prompt 01.**
 

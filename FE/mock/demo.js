@@ -61,9 +61,9 @@
       trigger: { device: "living/motion", field: "motion", op: "==", value: true }, conditions: [{ mode: ["away"] }],
       actions: [{ notify: "Phát hiện chuyển động trong phòng khách khi vắng nhà!", level: "critical" },
         { device: "living/light", set: { on: true, brightness: 100 } }], cooldown: 60 },
-    { id: "living_idle", name: "Không ai trong phòng khách 2 phút → tắt đèn, quạt", description: "Tiết kiệm điện khi không có chuyển động",
+    { id: "living_idle", name: "Không ai trong phòng khách 2 phút → tắt đèn, quạt", description: "Tiết kiệm điện khi không có chuyển động (không áp dụng khi TV đang bật, ví dụ lúc xem phim)",
       trigger: { device: "living/motion", field: "motion", op: "==", value: false, for: 120 },
-      conditions: [{ device: "living/light", field: "on", op: "==", value: true }],
+      conditions: [{ device: "living/light", field: "on", op: "==", value: true }, { device: "living/tv-plug", field: "on", op: "==", value: false }],
       actions: [{ device: "living/light", set: { on: false } }, { device: "living/fan", set: { on: false } },
         { notify: "Phòng khách không có người 2 phút — đã tắt đèn và quạt", level: "info" }] },
     { id: "night_lock", name: "23:00 tự khóa cửa nếu quên", description: "Kiểm tra khóa cửa chính lúc 23:00",
@@ -71,18 +71,18 @@
       actions: [{ device: "entrance/lock", set: { locked: true } }, { notify: "23:00 — cửa chính chưa khóa, đã tự động khóa", level: "warn" }] },
   ];
   const SCENES = [
-    { id: "home", name: "Về nhà", icon: "🏠", actions: [{ mode: "home" }, { device: "entrance/lock", set: { locked: false } },
+    { id: "home", name: "Về nhà", icon: "🏠", forMode: "home", actions: [{ mode: "home" }, { device: "entrance/lock", set: { locked: false } },
       { device: "living/light", set: { on: true, brightness: 80 } }, { device: "living/curtain", set: { position: 100 } },
       { device: "living/ac", set: { on: true, mode: "cool", target: 26 } }] },
-    { id: "away", name: "Ra khỏi nhà", icon: "🚪", actions: [{ type: "light", set: { on: false } }, { type: "fan", set: { on: false } },
-      { type: "ac", set: { on: false } }, { device: "living/tv-plug", set: { on: false } }, { type: "curtain", set: { position: 0 } },
+    { id: "away", name: "Ra khỏi nhà", icon: "🚪", forMode: "away", actions: [{ type: "light", set: { on: false } }, { type: "fan", set: { on: false } },
+      { type: "ac", set: { on: false } }, { type: "plug", set: { on: false } }, { type: "curtain", set: { position: 0 } },
       { type: "lock", set: { locked: true } }, { delay: 3 }, { mode: "away" }] },
-    { id: "sleep", name: "Đi ngủ", icon: "🌙", actions: [{ mode: "night" }, { type: "light", except: ["bedroom/light"], set: { on: false } },
+    { id: "sleep", name: "Đi ngủ", icon: "🌙", forMode: "night", actions: [{ mode: "night" }, { type: "light", except: ["bedroom/light"], set: { on: false } },
       { device: "bedroom/light", set: { on: true, brightness: 10 } }, { device: "bedroom/ac", set: { on: true, mode: "cool", target: 27 } },
-      { device: "living/ac", set: { on: false } }, { device: "living/tv-plug", set: { on: false } },
+      { device: "living/ac", set: { on: false } }, { type: "fan", set: { on: false } }, { type: "plug", set: { on: false } },
       { type: "curtain", set: { position: 0 } }, { type: "lock", set: { locked: true } }] },
     { id: "morning", name: "Buổi sáng", icon: "☀️", actions: [{ mode: "home" }, { type: "curtain", set: { position: 100 } },
-      { device: "bedroom/light", set: { on: true, brightness: 80 } }, { device: "bedroom/ac", set: { on: false } }] },
+      { device: "bedroom/light", set: { on: false } }, { device: "bedroom/ac", set: { on: false } }] },
     { id: "movie", name: "Xem phim", icon: "🎬", actions: [{ device: "living/light", set: { on: true, brightness: 15 } },
       { device: "living/curtain", set: { position: 0 } }, { device: "living/tv-plug", set: { on: true } },
       { device: "living/ac", set: { on: true, mode: "cool", target: 25 } }] },
@@ -248,6 +248,7 @@
         }
       }
       this.mode = "home";
+      this.sceneGen = 0;           // đợt điều khiển hiện hành: kịch bản mới / người dùng đổi chế độ thì tăng, kịch bản cũ dừng (giống BE)
       this.rules = RULES.map((r) => ({ ...r, enabled: true }));
       this.rt = Object.fromEntries(RULES.map((r) => [r.id, { since: null, fired: false, last: 0, lastMs: null }]));
       this.msgs = 24817;
@@ -348,10 +349,16 @@
       this.engineStatus();
       this.run(r.actions, ctx, `rule:${r.id}`);
     }
-    async run(actions, ctx, via) {
+    // gen/report/label chỉ dùng cho kịch bản: bị kịch bản/chế độ mới thay thế thì dừng; cuối kịch bản báo thiết bị offline
+    async run(actions, ctx, via, gen = null, report = null, label = "") {
+      const alive = () => gen == null || gen === this.sceneGen;
       for (const a of actions) {
-        if (this.stopped) return;
-        if (a.delay) { await new Promise((ok) => this.timers.push(setTimeout(ok, a.delay * 1000))); continue; }
+        if (this.stopped || !alive()) return;
+        if (a.delay) {
+          await new Promise((ok) => this.timers.push(setTimeout(ok, a.delay * 1000)));
+          if (this.stopped || !alive()) return;
+          continue;
+        }
         if (a.set) {
           const keys = a.device ? [a.device] : this.devices
             .filter((d) => d.type === a.type && d.online && !(a.except || []).includes(d.key) && (!a.room || d.room === a.room))
@@ -361,14 +368,34 @@
             const [room, id] = k.split("/");
             this.publish(`${this.p}/${room}/${id}/set`, body);
           }
+          if (report) report.push(...this.unreachable(a));
         } else if (a.scene) this.scene(a.scene, via);
         else if (a.mode) this.setMode(a.mode, via);
         else if (a.notify) this.notify(a.level || "info", fill(a.notify, ctx), via);
       }
+      if (report && report.length && alive() && !this.stopped) {
+        const missed = [...new Set(report)].sort();
+        const lock = missed.some((k) => (this.get(k) || {}).type === "lock");
+        this.notify(lock ? "critical" : "warn",
+          `Kịch bản “${label}” chưa điều khiển được (đang offline): ${missed.join(", ")}${lock ? " — CỬA CHƯA ĐƯỢC KHÓA, hãy kiểm tra thủ công!" : ""}`, via);
+      }
+    }
+    unreachable(a) {                              // thiết bị hành động `a` nhắm tới nhưng đang offline
+      if (a.device) return this.online(a.device) ? [] : [a.device];
+      return this.devices
+        .filter((d) => d.type === a.type && !d.online && !(a.except || []).includes(d.key) && (!a.room || d.room === a.room))
+        .map((d) => d.key);
     }
     control(what, d) {
-      if (what === "mode") this.setMode(d.mode, d.from || "?");
-      else if (what === "scene") this.scene(d.scene, d.from || "?");
+      if (what === "mode") {
+        if (!MODES[d.mode]) return this.notify("warn", `Chế độ không hợp lệ: ${JSON.stringify(d.mode)}`, d.from || "?");
+        // Người dùng tự chọn chế độ -> chạy HẲN kịch bản gắn với chế độ đó (giống BE: Ở nhà = "Về nhà", Vắng nhà = "Ra khỏi nhà",
+        // Ban đêm = "Đi ngủ"); kịch bản tự đặt chế độ ở đúng bước của nó. Đã ở chế độ này thì không điều khiển thiết bị.
+        const scene = SCENES.find((s) => s.forMode === d.mode);
+        if (scene && d.mode !== this.mode) this.scene(scene.id, d.from || "?");
+        else { this.sceneGen++; this.setMode(d.mode, d.from || "?"); }
+      }
+      else if (what === "scene") { if (d.add) this.addScene(d.add, d.from || "?"); else this.scene(d.scene, d.from || "?"); }
       else if (what === "rule") {
         const r = this.rules.find((x) => x.id === d.id);
         if (r) { r.enabled = !!d.enabled; this.engineStatus(); }
@@ -376,9 +403,62 @@
     }
     scene(id, src) {
       const s = SCENES.find((x) => x.id === id);
-      if (!s) return;
+      if (!s) return this.notify("warn", `Không có kịch bản “${id}”`, src);
       this.notify("info", `Chạy kịch bản “${s.name}”`, src);
-      this.run(s.actions, {}, `scene:${id}`);
+      this.sceneGen++;                            // kịch bản mới thay thế mọi kịch bản cũ đang chạy dở
+      this.run(s.actions, {}, `scene:${id}`, this.sceneGen, [], s.name);
+    }
+    // Thêm kịch bản người dùng tạo (giống BE/service/scene_validation.py). Ở chế độ Demo chỉ lưu trong bộ nhớ trang.
+    addScene(data, src) {
+      const bad = this.sceneProblem(data);
+      if (bad) return this.notify("warn", `Không thêm được kịch bản: ${bad}`, src);
+      const name = data.name.trim().replace(/\s+/g, " ");
+      const base = "custom-" + (name.replace(/đ/g, "d").replace(/Đ/g, "D").normalize("NFKD").replace(/[̀-ͯ]/g, "")
+        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "kich-ban");
+      let id = base, n = 2;
+      while (SCENES.some((s) => s.id === id)) id = `${base}-${n++}`;
+      SCENES.push({ id, name, icon: (data.icon || "").trim() || "▶", custom: true, actions: data.actions.map((a) => ({ ...a })) });
+      this.engineStatus();
+      this.notify("info", `Đã thêm kịch bản “${name}”`, src);
+    }
+    sceneProblem(data) {
+      const SPEC = { light: { on: "bool", brightness: [1, 100] }, fan: { on: "bool", speed: [1, 3] },
+        ac: { on: "bool", mode: ["cool", "dry", "fan"], target: [16, 30] }, curtain: { position: [0, 100] },
+        lock: { locked: "bool" }, plug: { on: "bool" } };
+      const setProblem = (type, set) => {
+        const spec = SPEC[type];
+        if (!spec) return `Loại thiết bị “${type}” không điều khiển được`;
+        if (!set || typeof set !== "object" || !Object.keys(set).length) return "Hành động điều khiển phải có ít nhất một thông số";
+        for (const [k, v] of Object.entries(set)) {
+          const r = spec[k];
+          if (!r) return `Thiết bị loại “${type}” không có thông số “${k}”`;
+          if (r === "bool" ? typeof v !== "boolean" : Array.isArray(r) && typeof r[0] === "string" ? !r.includes(v)
+            : typeof v !== "number" || v < r[0] || v > r[1]) return `Giá trị “${k}” không hợp lệ`;
+        }
+        return null;
+      };
+      if (!data || typeof data !== "object") return "Dữ liệu kịch bản không hợp lệ";
+      const name = typeof data.name === "string" ? data.name.trim().replace(/\s+/g, " ") : "";
+      if (!name) return "Hãy nhập tên kịch bản";
+      if (name.length > 40) return "Tên kịch bản tối đa 40 ký tự";
+      if (SCENES.some((s) => s.name.toLowerCase() === name.toLowerCase())) return `Đã có kịch bản tên “${name}”`;
+      if (SCENES.filter((s) => s.custom).length >= 30) return "Chỉ tạo được tối đa 30 kịch bản riêng";
+      if (data.icon && (typeof data.icon !== "string" || data.icon.trim().length > 8)) return "Biểu tượng tối đa 8 ký tự";
+      if (!Array.isArray(data.actions) || !data.actions.length) return "Kịch bản cần ít nhất một hành động";
+      if (data.actions.length > 30) return "Kịch bản tối đa 30 hành động";
+      for (const [i, a] of data.actions.entries()) {
+        let p = null;
+        if (!a || typeof a !== "object") p = "Mỗi hành động phải là một đối tượng";
+        else if ("delay" in a) { if (typeof a.delay !== "number" || !(a.delay > 0 && a.delay <= 3600)) p = "Thời gian chờ phải lớn hơn 0 và tối đa 3600 giây"; }
+        else if ("mode" in a) { if (!MODES[a.mode]) p = `Chế độ “${a.mode}” không hợp lệ`; }
+        else if ("notify" in a) { if (typeof a.notify !== "string" || !a.notify.trim() || a.notify.length > 200) p = "Nội dung thông báo phải có chữ và tối đa 200 ký tự"; else if (a.level && !["info", "warn", "critical"].includes(a.level)) p = "Mức thông báo phải là: info, warn, critical"; }
+        else if ("set" in a && "device" in a) { const d = this.get(a.device); p = !d ? `Chưa tìm thấy thiết bị “${a.device}” trong hệ thống` : setProblem(d.type, a.set); }
+        else if ("set" in a && "type" in a) p = setProblem(a.type, a.set);
+        else p = "Hành động không đúng dạng cho phép (thiết bị, nhóm thiết bị, chế độ, chờ hoặc thông báo)";
+        if (p) return `Hành động ${i + 1}: ${p}`;
+      }
+      if (data.actions.every((a) => "delay" in a)) return "Kịch bản chỉ có bước chờ thì không làm gì cả";
+      return null;
     }
     setMode(m, src) {
       if (!MODES[m]) return;
@@ -392,7 +472,7 @@
       this.deliver(`${this.p}/_auto/engine/status`, {
         state: "online", ts: Date.now(), modes: MODES,
         rules: this.rules.map((r) => ({ id: r.id, name: r.name, description: r.description, enabled: r.enabled, last_fired: this.rt[r.id].lastMs })),
-        scenes: SCENES.map((s) => ({ id: s.id, name: s.name, icon: s.icon })),
+        scenes: SCENES.map((s) => ({ id: s.id, name: s.name, icon: s.icon, custom: !!s.custom })),
       }, retain);
     }
 

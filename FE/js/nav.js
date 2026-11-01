@@ -22,7 +22,7 @@
     {
       id: "home",
       hash: "#/home",
-      label: "Tổng quan",
+      label: "Trang chủ",
       icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>'
     },
     {
@@ -35,7 +35,7 @@
     {
       id: "scenes",
       hash: "#/scenes",
-      label: "Kịch bản & chế độ",
+      label: "Kịch bản",
       icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
     },
     {
@@ -55,7 +55,7 @@
     { type: "header", label: "Dữ liệu" },
     {
       id: "history",
-      href: "history.html",
+      hash: "#/history",
       label: "Lịch sử",
       icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
     },
@@ -145,6 +145,29 @@
     }
   }
 
+  const VALID_PAGES = ["home", "devices", "scenes", "rules", "alerts", "history", "log"];
+
+  /** Đánh dấu mục menu đang chọn (chỉ đổi những mục thật sự thay đổi). */
+  function setActiveNav(targetPageId) {
+    $$(".nav-item").forEach(item => {
+      const p = item.getAttribute("data-page");
+      if (p === targetPageId) {
+        if (!item.classList.contains("active")) {
+          item.classList.add("active");
+          item.setAttribute("aria-current", "page");
+        }
+      } else if (item.classList.contains("active")) {
+        item.classList.remove("active");
+        item.removeAttribute("aria-current");
+      }
+    });
+  }
+
+  function currentPageFromHash() {
+    const id = (location.hash || "#/home").replace(/^#\/?/, "").split("/").filter(Boolean)[0] || "home";
+    return VALID_PAGES.includes(id) ? id : "home";
+  }
+
   /**
    * Bộ định tuyến theo hash (Router)
    * Chỉ cập nhật khi route thực sự thay đổi, không chớp màn hình.
@@ -157,8 +180,7 @@
 
     currentRoute = pageId;
 
-    const validPages = ["home", "devices", "scenes", "rules", "alerts", "log"];
-    const targetPageId = validPages.includes(pageId) ? pageId : "home";
+    const targetPageId = VALID_PAGES.includes(pageId) ? pageId : "home";
 
     const activeSection = $(`page-${targetPageId}`);
     // Chỉ đổi active class khi trang mục tiêu chưa active (tránh chớp trang)
@@ -172,33 +194,24 @@
     }
 
     // Cập nhật trạng thái active trên sidebar
-    $$(".nav-item").forEach(item => {
-      const p = item.getAttribute("data-page");
-      if (p === targetPageId) {
-        if (!item.classList.contains("active")) {
-          item.classList.add("active");
-          item.setAttribute("aria-current", "page");
-        }
-      } else {
-        if (item.classList.contains("active")) {
-          item.classList.remove("active");
-          item.removeAttribute("aria-current");
-        }
-      }
-    });
+    setActiveNav(targetPageId);
+
+    // Router đã đặt .active đúng trang -> bỏ lớp chọn-trang-sớm đặt trong <head> (xem index.html)
+    document.documentElement.removeAttribute("data-route");
 
     // Cập nhật tiêu đề breadcrumb
     const pageTitleMap = {
-      home: "Tổng quan",
+      home: "Trang chủ",
       devices: "Thiết bị",
-      scenes: "Kịch bản & chế độ",
+      scenes: "Kịch bản",
       rules: "Luật tự động",
       alerts: "Thông báo",
+      history: "Lịch sử",
       log: "Message log"
     };
     const crumbEl = $("pageCrumb");
     if (crumbEl) {
-      let title = pageTitleMap[targetPageId] || "Tổng quan";
+      let title = pageTitleMap[targetPageId] || "Trang chủ";
       if (targetPageId === "devices" && subParam) {
         const tabBtn = $(`roomTabs`)?.querySelector(`button[data-room="${subParam}"]`);
         const roomName = tabBtn ? tabBtn.textContent.trim() : subParam;
@@ -215,6 +228,11 @@
 
     if (targetPageId === "alerts") {
       resetAlertCount();
+    }
+
+    // Trang Lịch sử nằm trong cùng khung: mỗi lần mở thì báo cho history.js nạp lại dữ liệu từ API
+    if (targetPageId === "history") {
+      window.dispatchEvent(new CustomEvent("sh:history-show"));
     }
 
     // Đóng drawer trên mobile
@@ -428,8 +446,9 @@
    */
   function initQuickScenes() {
     const srcScenes = $("scenes");
-    const quickScenes = $("quickScenes");
-    if (!srcScenes || !quickScenes) return;
+    // Trang chủ (#quickScenes) và trang Thiết bị ([data-scenes-copy]) cùng dùng bản sao các nút kịch bản
+    const targets = [$("quickScenes"), ...$$("[data-scenes-copy]")].filter(Boolean);
+    if (!srcScenes || !targets.length) return;
 
     function sync() {
       const btns = $$("button.scene", srcScenes);
@@ -437,16 +456,18 @@
       if (signature === lastScenesSignature && btns.length > 0) return;
       lastScenesSignature = signature;
 
-      quickScenes.innerHTML = "";
-      if (!btns.length) {
-        quickScenes.innerHTML = '<span class="muted">Chưa có kịch bản.</span>';
-        return;
-      }
-      for (const btn of btns) {
-        const clone = btn.cloneNode(true);
-        clone.id = "";
-        clone.addEventListener("click", () => btn.click());
-        quickScenes.appendChild(clone);
+      for (const target of targets) {
+        target.innerHTML = "";
+        if (!btns.length) {
+          target.innerHTML = '<span class="muted">Chưa có kịch bản.</span>';
+          continue;
+        }
+        for (const btn of btns) {
+          const clone = btn.cloneNode(true);
+          clone.id = "";
+          clone.addEventListener("click", () => btn.click());
+          target.appendChild(clone);
+        }
       }
     }
 
@@ -471,16 +492,44 @@
       });
     });
 
+    // Bản sao khối "Chế độ" ở trang Thiết bị: bấm thì ủy quyền sang nút gốc trong #modeSeg
+    const copies = $$("[data-mode-copy]");
+    copies.forEach(copy => {
+      copy.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-mode]");
+        if (!btn || btn.disabled) return;
+        const origBtn = origSeg.querySelector(`button[data-mode="${btn.getAttribute("data-mode")}"]`);
+        if (origBtn) origBtn.click();
+      });
+    });
+    const enginePill = $("enginePill");
+
     function syncMode() {
       const activeOrig = origSeg.querySelector("button.on");
       const currentMode = activeOrig ? activeOrig.getAttribute("data-mode") : null;
       $$(".top-mode-btn", topSeg).forEach(btn => {
         btn.classList.toggle("on", btn.getAttribute("data-mode") === currentMode);
       });
+      // đồng bộ trạng thái chọn / vô hiệu hóa sang các bản sao
+      for (const copy of copies) {
+        $$("button[data-mode]", copy).forEach(btn => {
+          const orig = origSeg.querySelector(`button[data-mode="${btn.getAttribute("data-mode")}"]`);
+          btn.classList.toggle("on", btn.getAttribute("data-mode") === currentMode);
+          btn.disabled = orig ? orig.disabled : true;
+        });
+      }
+      // đồng bộ viên thuốc "Automation online/offline"
+      if (enginePill) {
+        for (const pill of $$("[data-engine-copy]")) {
+          if (pill.className !== enginePill.className) pill.className = enginePill.className;
+          if (pill.innerHTML !== enginePill.innerHTML) pill.innerHTML = enginePill.innerHTML;
+        }
+      }
     }
 
     const obs = new MutationObserver(() => syncMode());
     obs.observe(origSeg, { subtree: true, attributes: true, attributeFilter: ["class", "disabled"] });
+    if (enginePill) obs.observe(enginePill, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["class"] });
     syncMode();
   }
 
@@ -569,6 +618,11 @@
 
     scheduleRoomUpdate();
   }
+
+  // Script được đặt ngay sau <aside id="sidebar">: dựng menu và đánh dấu mục đang chọn NGAY,
+  // trước lần vẽ đầu tiên, để sidebar không xuất hiện trễ (nháy từ trống sang đầy đủ).
+  renderSidebar();
+  setActiveNav(currentPageFromHash());
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

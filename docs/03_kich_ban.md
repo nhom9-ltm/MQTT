@@ -1,4 +1,4 @@
-# Prompt 03 — Trang Kịch bản & chế độ
+# Prompt 03 — Trang Kịch bản
 
 > **Điều kiện tiên quyết:** prompt 01 đã hoàn thành. Trước khi làm, kiểm tra `FE/js/nav.js` tồn tại, `FE/index.html` có `<aside id="sidebar">` và `<section class="page" id="page-scenes">`. **Nếu thiếu: dừng lại và báo cáo, không tự làm thay prompt 01.**
 
@@ -14,12 +14,11 @@
 
 ## 1. Bối cảnh
 
-Trang **Kịch bản & chế độ** (`#/scenes`) gồm hai khối hiện có trong `section.control`:
-- **Chế độ nhà:** `#modeSeg` với 3 nút `data-mode="home|away|night"` (Ở nhà / Vắng nhà / Ban đêm) và `#enginePill` (trạng thái automation).
+Trang **Kịch bản** (`#/scenes`) chỉ còn **một khối**, `.panel.scene-panel`. (**Chế độ nhà** — `#modeSeg`, `#enginePill` — đã được chuyển sang **Trang chủ**, không còn ở trang này; không đưa lại về đây.)
 - **Kịch bản:** `#scenes` — `app.js` dựng các nút `button.scene[data-scene]` từ dữ liệu retained của automation (5 kịch bản: Về nhà, Ra khỏi nhà, Đi ngủ, Buổi sáng, Xem phim); `#sceneTopic` hiển thị topic.
 - Khi automation engine **chưa chạy/offline**, các nút bị `disabled` và `#scenes` hiện câu hướng dẫn chạy `python BE/run_automation.py`. **Hành vi này giữ nguyên.**
 
-Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (mục 4, hàng "Kịch bản & chế độ": "3 chế độ + 5 kịch bản dạng nút lớn"; ghi chú "hiện đang mờ khi automation chưa chạy → giữ trạng thái này, kèm câu hướng dẫn").
+Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (mục 4, hàng "Kịch bản": "5 kịch bản dạng nút lớn" (phần "3 chế độ" trong wireframe nay thuộc Trang chủ); ghi chú "hiện đang mờ khi automation chưa chạy → giữ trạng thái này, kèm câu hướng dẫn").
 
 ## 2. Phạm vi file
 
@@ -31,15 +30,15 @@ Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (m�
 
 ## 3. Yêu cầu
 
-**3.1. Bố cục trang** theo wireframe: hai khối xếp dọc trên mobile, cạnh nhau trên desktop (giữ tỉ lệ lưới hiện tại của `.control`). Mỗi khối là một `.panel` có tiêu đề như hiện tại.
+**3.1. Bố cục trang** theo wireframe: một `.panel` rộng toàn chiều ngang vùng nội dung, có tiêu đề "Kịch bản" và chú thích topic như hiện tại.
 
-**3.2. Chế độ nhà:** 3 nút của `#modeSeg` to hơn, dễ bấm (chiều cao tối thiểu khoảng 44px, theo ngón tay trên mobile). Giữ nguyên màu theo chế độ đang chọn đã có trong `style.css`. `#enginePill` giữ nguyên vị trí ở tiêu đề khối.
+**3.2. (Đã bỏ)** Chế độ nhà không còn thuộc trang này. Không thêm, không sửa khối Chế độ ở đây.
 
 **3.3. Kịch bản dạng nút lớn:** các `button.scene` hiển thị dạng lưới nút lớn (biểu tượng emoji + tên), 5 nút xếp lưới tự co (ví dụ 2–3 cột desktop, 1–2 cột mobile). **Chỉ đổi kích thước/bố cục bằng CSS** gắn vào phạm vi `#page-scenes`; không đổi HTML do `app.js` sinh ra.
 
 **3.4. Trạng thái "engine chưa chạy":** các nút mờ (disabled) giống hiện tại; câu hướng dẫn `<span class="muted">Chạy <code>python BE/run_automation.py</code> …` hiển thị rõ, căn giữa khối, không bị cắt.
 
-**3.5. Đồng bộ với thanh trên và trang Tổng quan:** chế độ chọn ở thanh trên (prompt 01) và nút "Kịch bản nhanh" ở trang Tổng quan chỉ **ủy quyền** (`.click()`) sang các nút ở trang này. Vì vậy các nút `#modeSeg` và `#scenes` **phải luôn còn trong DOM** (ẩn bằng `display:none` khi không ở trang này là đủ; **không** dùng cách xóa khỏi DOM).
+**3.5. Đồng bộ với trang Trang chủ:** nút "Kịch bản nhanh" ở Trang chủ chỉ **ủy quyền** (`.click()`) sang các nút ở trang này. Vì vậy `#scenes` **phải luôn còn trong DOM** (ẩn bằng `display:none` khi không ở trang này là đủ; **không** dùng cách xóa khỏi DOM).
 
 ### Điểm CHƯA được chốt — KHÔNG tự làm, ghi vào "Cần xác nhận"
 - Việc thêm, sửa, xóa kịch bản từ giao diện (hiện kịch bản chỉ sửa được trong `BE/config/scenes.json`).
@@ -47,17 +46,16 @@ Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (m�
 
 ## 4. Tiêu chí nghiệm thu
 
-- [ ] Chọn từng chế độ: nút đang chọn đổi, `body[data-mode]` đổi, màu logo đổi như trước; chế độ ở thanh trên đổi theo.
 - [ ] Bấm từng kịch bản: lệnh được gửi (xem trang Message log hoặc terminal `run_automation.py`), thông báo "Chạy kịch bản …" xuất hiện.
 - [ ] Tắt automation (`Ctrl+C`): nút chuyển mờ, `#enginePill` báo offline, câu hướng dẫn hiện; bật lại thì dùng được.
-- [ ] Nút "Kịch bản nhanh" ở Tổng quan và chế độ ở thanh trên vẫn hoạt động.
+- [ ] Nút "Kịch bản nhanh" ở Trang chủ vẫn hoạt động; chế độ nhà (ở Trang chủ và thanh trên) không bị ảnh hưởng.
 - [ ] Hiển thị đúng ở 1280px, 900px, 420px; màu sáng/tối không đổi; Console không lỗi.
 - [ ] `git diff --stat` chỉ gồm file ở mục 2.
 
 ## 5. Cách kiểm tra
 
 1. `docker compose up -d`, `python BE/run_simulator.py`, `python BE/run_automation.py`; mở http://localhost:8080/#/scenes (hoặc `?demo=1`).
-2. Thử từng chế độ, từng kịch bản; thử tắt/bật automation.
+2. Thử từng kịch bản; thử tắt/bật automation.
 3. Kiểm tra ở 3 độ rộng và 2 chế độ màu.
 
 ## 6. Báo cáo khi hoàn thành (bắt buộc, đúng định dạng)

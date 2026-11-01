@@ -1,12 +1,15 @@
-/* Trang lịch sử: gọi API (api/api.py) và vẽ biểu đồ bằng Chart.js.
- * API mặc định http://<host của trang>:8000 ; đổi bằng ?api=http://host:8000 */
+/* Trang Lịch sử (#/history trong index.html): gọi API (BE/run_api.py) và vẽ biểu đồ bằng Chart.js.
+ * API mặc định http://<host của trang>:8001 ; đổi bằng ?api=http://host:8001
+ * Dữ liệu chỉ được nạp khi người dùng mở trang này (nav.js phát sự kiện "sh:history-show"). */
 (() => {
   const $ = (id) => document.getElementById(id);
+  if (!$("page-history")) return;
   const qs = new URLSearchParams(location.search);
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const PALETTE = ["#3fb6a8", "#ff8a3d", "#4aa8ff", "#c084fc", "#f5b942", "#ff5d8f", "#3ccf7e", "#a78bfa"];
 
-  const el = { api: $("apiUrl"), range: $("range"), room: $("room"), pill: $("apiPill") };
+  const el = { api: $("apiUrl"), range: $("histRange"), room: $("histRoom"), pill: $("apiPill"),
+    kpis: $("histKpis"), alerts: $("histAlerts") };
   // Mở bằng file:// thì không có hostname/giao thức http -> dùng thẳng localhost
   const web = location.protocol === "http:" || location.protocol === "https:";
   el.api.value = qs.get("api") || (web ? `${location.protocol}//${location.hostname}:8001` : "http://localhost:8001");
@@ -30,9 +33,10 @@
 
   function draw(id, config) {
     charts[id]?.destroy();
+    // Giá trị giống hệt app.js để không làm đổi giao diện các biểu đồ ở Trang chủ (Chart.defaults là toàn cục)
     Chart.defaults.color = css("--muted");
     Chart.defaults.borderColor = css("--line");
-    Chart.defaults.font.family = css("--font") || "Be Vietnam Pro, sans-serif";
+    Chart.defaults.font.family = '"Be Vietnam Pro", system-ui, sans-serif';
     charts[id] = new Chart($(id), { ...config, options: {
       responsive: true, maintainAspectRatio: false, animation: false, ...config.options } });
   }
@@ -40,13 +44,13 @@
   function empty(id, msg = "Chưa có dữ liệu trong khoảng này") {
     charts[id]?.destroy();
     const box = $(id).parentElement;
-    box.querySelector(".empty")?.remove();
+    box.querySelector(".hist-empty")?.remove();
     $(id).style.display = "none";
-    box.insertAdjacentHTML("beforeend", `<div class="empty">${msg}</div>`);
+    box.insertAdjacentHTML("beforeend", `<div class="hist-empty">${msg}</div>`);
   }
   function unempty(id) {
     $(id).style.display = "";
-    $(id).parentElement.querySelector(".empty")?.remove();
+    $(id).parentElement.querySelector(".hist-empty")?.remove();
   }
 
   const bar = (id, labels, data, color, horizontal = false) => {
@@ -57,7 +61,11 @@
         plugins: { legend: { display: false } } } });
   };
 
+  const kpi = (value, label) => `<div class="kpi"><span class="k-label">${label}</span><span class="k-val">${value}</span></div>`;
+  const LEVEL_CLASS = { critical: "bad", warn: "warn", info: "info", rule: "rule" };
+
   async function loadClimate(hours) {
+    if (!el.room.value) return empty("cClimate");
     const d = await get(`/api/climate?room=${encodeURIComponent(el.room.value)}&hours=${hours}`);
     if (!d.points.length) return empty("cClimate");
     unempty("cClimate");
@@ -88,12 +96,12 @@
       if (sum.rooms.includes(keep)) el.room.value = keep;
 
       const kwh = energy.by_day.reduce((a, x) => a + x.kwh, 0);
-      $("kpis").innerHTML = [
-        [sum.messages_total.toLocaleString("vi-VN"), "bản ghi đã lưu"],
-        [sum.commands, `lệnh trong ${hours >= 24 ? hours / 24 + " ngày" : hours + " giờ"}`],
-        [kwh.toFixed(1), "kWh ước tính"],
-        [sum.alerts, "cảnh báo critical"],
-      ].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+      el.kpis.innerHTML = [
+        kpi(sum.messages_total.toLocaleString("vi-VN"), "Bản ghi đã lưu"),
+        kpi(sum.commands, `Lệnh trong ${hours >= 24 ? hours / 24 + " ngày" : hours + " giờ"}`),
+        kpi(kwh.toFixed(1), "kWh ước tính"),
+        kpi(sum.alerts, "Cảnh báo critical"),
+      ].join("");
 
       await loadClimate(hours);
       bar("cEnergyDay", energy.by_day.map((x) => x.day.slice(5)), energy.by_day.map((x) => x.kwh), css("--accent"));
@@ -107,23 +115,24 @@
       } else empty("cCmdSrc");
       bar("cCmdDev", cmd.by_device.map((x) => x.device), cmd.by_device.map((x) => x.n), css("--c-ac"), true);
 
-      $("alerts").innerHTML = alerts.length ? alerts.map((a) =>
-        `<li class="${a.level}"><time>${new Date(a.t).toLocaleString("vi-VN")}</time><span></span></li>`).join("")
-        : `<li class="empty">Chưa có cảnh báo</li>`;
-      [...$("alerts").querySelectorAll("li span")].forEach((s, i) => { s.textContent = alerts[i].text; });  // textContent: tránh chèn HTML
+      el.alerts.innerHTML = alerts.length ? alerts.map((a) =>
+        `<li class="${LEVEL_CLASS[a.level] || "info"}"><time>${new Date(a.t).toLocaleString("vi-VN")}</time><span></span></li>`).join("")
+        : `<li class="muted">Chưa có cảnh báo</li>`;
+      [...el.alerts.querySelectorAll("li span")].forEach((s, i) => { s.textContent = alerts[i].text; });  // textContent: tránh chèn HTML
 
       setPill("ok", "API OK");
     } catch (e) {
       console.error(e);
       setPill("bad", "Lỗi API");
-      $("kpis").innerHTML = `<div class="kpi"><b>⚠</b><span></span></div>`;
-      $("kpis").querySelector("span").textContent =
-        `Không gọi được ${el.api.value}: ${e.message}. Đã chạy "uvicorn api.api:app --port 8000" chưa?`;
+      el.kpis.innerHTML = kpi("⚠", "");
+      el.kpis.querySelector(".k-label").textContent =
+        `Không gọi được ${el.api.value}: ${e.message}. Đã chạy "python BE/run_api.py" chưa?`;
     }
   }
 
   $("histForm").addEventListener("submit", (e) => { e.preventDefault(); loadAll(); });
   el.range.addEventListener("change", loadAll);
   el.room.addEventListener("change", () => loadClimate(+el.range.value).catch(console.error));
-  loadAll();
+  // Nạp dữ liệu mỗi lần người dùng mở trang Lịch sử (đợi 1 khung hình để trang đã hiển thị, biểu đồ đo đúng kích thước)
+  window.addEventListener("sh:history-show", () => requestAnimationFrame(loadAll));
 })();

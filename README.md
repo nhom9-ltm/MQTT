@@ -96,14 +96,14 @@ Khi thuyết trình, nên chạy bằng terminal như ở trên để khán gi�
 | Dashboard | `FE/` | Giao diện web (MQTT.js + Chart.js); `FE/mock/demo.js` dùng cho chế độ Demo |
 | Logger | `BE/controller/logger_controller.py`, `BE/service/logger_service.py` | Lưu state, lệnh và cảnh báo vào `BE/data/smarthome.db`; xuất CSV, in báo cáo |
 | Thông báo | `BE/controller/notifier_controller.py` | Telegram / Email cho cảnh báo `critical` ([MO_RONG.md](MO_RONG.md)) |
-| API lịch sử | `BE/controller/api_controller.py` | Biểu đồ lịch sử cho `FE/history.html` ([MO_RONG.md](MO_RONG.md)) |
+| API lịch sử | `BE/controller/api_controller.py` | Biểu đồ lịch sử cho trang Lịch sử (`FE/index.html#/history`) ([MO_RONG.md](MO_RONG.md)) |
 | Bản cũ | `legacy/v1-monitor/` | Phiên bản 1: chỉ giám sát nhiệt độ/độ ẩm |
 
 ### Cấu trúc thư mục
 
 ```
 FE/                      giao diện (phục vụ bằng web server tĩnh)
-├── index.html, history.html
+├── index.html (ứng dụng một trang: Trang chủ, Thiết bị, Kịch bản, Luật, Thông báo, Lịch sử, Log) · history.html (chỉ chuyển hướng)
 ├── css/                 style.css (màu, thẻ, nút) · history.css
 ├── layout/              layout.css (bố cục, lưới, responsive) · sidebar_wireframe.html
 ├── js/                  app.js (MQTT + điều khiển) · auth.js · history.js
@@ -243,7 +243,7 @@ Trong `notify`, có thể chèn giá trị từ thiết bị đã kích hoạt l
 | Đèn hiên | Có chuyển động ở lối vào, 17:30–06:00 | Bật đèn hiên 2 phút |
 | Xâm nhập (cửa) | Cửa mở khi *Vắng nhà* / *Ban đêm* | Cảnh báo đỏ, bật toàn bộ đèn |
 | Xâm nhập (chuyển động) | Có chuyển động ở phòng khách khi *Vắng nhà* | Cảnh báo đỏ, bật đèn phòng khách |
-| Tiết kiệm điện | Phòng khách không có chuyển động 2 phút | Tắt đèn và quạt |
+| Tiết kiệm điện | Phòng khách không có chuyển động 2 phút, **và TV đang tắt** (đang xem TV/phim thì không tắt) | Tắt đèn và quạt |
 | Quên khóa cửa | 23:00, cửa chưa khóa | Tự khóa cửa, cảnh báo |
 | [ESP32] Lab nóng / mát | > 30°C / < 29°C | Bật / tắt relay quạt (chênh 1°C để relay không bật tắt liên tục) |
 | [ESP32] Chuyển động | PIR phát hiện | Bật relay đèn 30 giây |
@@ -254,12 +254,20 @@ Trong `notify`, có thể chèn giá trị từ thiết bị đã kích hoạt l
 | Kịch bản | Hành động |
 |---|---|
 | 🏠 **Về nhà** | Chế độ *Ở nhà*, mở khóa, bật đèn phòng khách, mở rèm, bật điều hòa 26°C |
-| 🚪 **Ra khỏi nhà** | Tắt mọi đèn/quạt/điều hòa/TV, đóng rèm, khóa cửa, sau đó chuyển sang *Vắng nhà* |
-| 🌙 **Đi ngủ** | Chế độ *Ban đêm*, chỉ để đèn ngủ 10%, điều hòa phòng ngủ 27°C, đóng rèm, khóa cửa |
-| ☀️ **Buổi sáng** | Chế độ *Ở nhà*, mở rèm, bật đèn phòng ngủ, tắt điều hòa |
-| 🎬 **Xem phim** | Đèn phòng khách 15%, đóng rèm, bật TV, điều hòa 25°C |
+| 🚪 **Ra khỏi nhà** | Tắt mọi đèn/quạt/điều hòa và mọi ổ cắm (TV, **bếp điện**), đóng rèm, khóa cửa, chờ 3 giây rồi chuyển sang *Vắng nhà* |
+| 🌙 **Đi ngủ** | Chế độ *Ban đêm*, chỉ để đèn ngủ 10%, điều hòa phòng ngủ 27°C, tắt điều hòa phòng khách, quạt và mọi ổ cắm (TV, **bếp điện**), đóng rèm, khóa cửa |
+| ☀️ **Buổi sáng** | Chế độ *Ở nhà*, mở rèm, tắt đèn ngủ, tắt điều hòa phòng ngủ |
+| 🎬 **Xem phim** | Đèn phòng khách 15%, đóng rèm, bật TV, điều hòa 25°C (không đổi chế độ nhà) |
 
 Bật/tắt luật trên dashboard được lưu thẳng vào `BE/config/rules.json`. Nếu sửa file bằng tay thì cần khởi động lại engine.
+
+**Quy tắc chạy kịch bản:**
+- Chạy kịch bản mới (hoặc tự chọn một chế độ) sẽ **hủy kịch bản cũ đang chạy dở**; ví dụ bấm *Ra khỏi nhà* rồi *Về nhà* ngay thì chế độ cuối là *Ở nhà*, không bị ghi đè sang *Vắng nhà*.
+- Lệnh chọn theo loại thiết bị bỏ qua thiết bị đang offline; cuối kịch bản dashboard nhận **cảnh báo** liệt kê thiết bị chưa điều khiển được (mức *nghiêm trọng* nếu là khóa cửa).
+- Kịch bản hoặc chế độ không tồn tại cũng được báo lên dashboard.
+- **Tự chọn chế độ = chạy hẳn kịch bản tương ứng** (khai báo bằng `"for_mode"` trong `BE/config/scenes.json`): *Ở nhà* → "Về nhà", *Vắng nhà* → "Ra khỏi nhà", *Ban đêm* → "Đi ngủ". Chọn lại chế độ đang dùng thì không điều khiển thiết bị. Chỉ áp dụng khi **người dùng** chọn chế độ; kịch bản và luật tự đổi chế độ không kích hoạt thêm kịch bản (không chạy lặp). Lưu ý: *Vắng nhà* đổi chế độ sau khoảng 3 giây (chờ khóa cửa xong), nên nút chế độ sáng lên chậm hơn.
+- **Thêm kịch bản riêng:** trang **Kịch bản** có nút **＋ Thêm kịch bản**. Form cho ghép các bước: điều khiển một thiết bị, điều khiển cả nhóm thiết bị (theo loại, theo phòng), đổi chế độ, chờ N giây, gửi thông báo. Dashboard gửi `{"add": {name, icon, actions}}` lên `home/_auto/scene/set`; engine kiểm tra lại (`BE/service/scene_validation.py`: chỉ nhận đúng các khóa lệnh cho phép, chặn `action: crash`, `from`…), lưu vào `BE/config/scenes.custom.json` (file riêng, `scenes.json` không bị định dạng lại), rồi phát lại danh sách nên nút mới hiện ở Trang chủ, Thiết bị và Kịch bản. Kịch bản riêng chạy qua cùng bộ máy với kịch bản có sẵn (hủy khi có kịch bản mới, báo thiết bị offline). Tối đa 30 kịch bản riêng, 30 bước mỗi kịch bản. Ở chế độ Demo kịch bản chỉ lưu trong bộ nhớ trang. Chưa có nút sửa/xóa: xóa bằng cách sửa `scenes.custom.json` rồi khởi động lại automation.
+- Kiểm thử logic: `python -m unittest BE.tests.test_scenes -v`.
 
 > Chế độ Demo dùng **bản sao** các luật và kịch bản này, nằm trong `FE/mock/demo.js`.
 > Sửa `rules.json` thì nhớ sửa cả ở đó.
