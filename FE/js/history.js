@@ -9,7 +9,7 @@
   const el = { api: $("apiUrl"), range: $("range"), room: $("room"), pill: $("apiPill") };
   // Mở bằng file:// thì không có hostname/giao thức http -> dùng thẳng localhost
   const web = location.protocol === "http:" || location.protocol === "https:";
-  el.api.value = qs.get("api") || (web ? `${location.protocol}//${location.hostname}:8000` : "http://localhost:8000");
+  el.api.value = qs.get("api") || (web ? `${location.protocol}//${location.hostname}:8001` : "http://localhost:8001");
   if (qs.get("hours")) el.range.value = qs.get("hours");
 
   const charts = {};

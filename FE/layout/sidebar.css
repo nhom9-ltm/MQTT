@@ -1,0 +1,436 @@
+/* ==========================================================
+ *  Sidebar CSS — Bố cục thanh điều hướng bên trái và các huy hiệu
+ * ========================================================== */
+
+/* Khung bọc ứng dụng (Sidebar + Main) */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.main-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar cơ bản (Desktop >= 1024px) */
+#sidebar {
+  width: 240px;
+  flex: none;
+  background: var(--bg-2);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow-y: auto;
+  z-index: 100;
+  transition: width .2s ease, transform .2s ease;
+}
+
+/* Header thương hiệu trong Sidebar */
+.side-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 6px 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+
+.side-brand .logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--accent), var(--hum));
+  color: #fff;
+  flex: none;
+}
+
+.side-brand .brand-text {
+  min-width: 0;
+}
+
+.side-brand h1 {
+  font-size: 15px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.side-brand .sub {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Danh sách menu */
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-header {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  padding: 12px 10px 4px;
+  font-weight: 600;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 13.5px;
+  border: 1px solid transparent;
+  transition: background-color .15s, border-color .15s, color .15s;
+  position: relative;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.nav-item:hover {
+  background: var(--panel);
+}
+
+.nav-item.active {
+  background: var(--panel);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-badge {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--line);
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.nav-badge.alert {
+  background: var(--bad);
+  color: #fff;
+}
+
+/* Submenu danh sách phòng (Prompt 02) */
+.room-submenu {
+  list-style: none;
+  padding: 3px 0 6px 24px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.room-subitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12.5px;
+  transition: background-color .15s, color .15s;
+}
+
+.room-subitem:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.room-subitem.active {
+  background: var(--panel);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.room-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+
+.room-dot.off {
+  background: transparent;
+  border: 1.5px solid var(--muted);
+}
+
+.room-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--muted);
+}
+
+/* Chân Sidebar */
+.side-foot {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.side-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.side-collapse-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Sidebar dạng thu gọn (768px - 1023px hoặc khi bấm thu gọn) */
+#sidebar.collapsed {
+  width: 62px;
+  padding: 14px 6px;
+  align-items: center;
+}
+
+#sidebar.collapsed .side-brand {
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--line);
+  justify-content: center;
+  width: 100%;
+}
+
+#sidebar.collapsed .side-brand .brand-text,
+#sidebar.collapsed .nav-label,
+#sidebar.collapsed .nav-badge,
+#sidebar.collapsed .nav-header,
+#sidebar.collapsed .room-submenu,
+#sidebar.collapsed .collapse-text {
+  display: none !important;
+}
+
+#sidebar.collapsed .nav-item {
+  padding: 8px;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  box-sizing: border-box;
+}
+
+/* Nút chuông thông báo trên thanh trên (Prompt 05 & User request) */
+.bell-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  flex: none;
+  transition: border-color .15s, color .15s, background-color .15s;
+}
+
+.bell-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-sizing: border-box;
+  box-shadow: 0 0 0 2px var(--bg-2);
+  pointer-events: none;
+}
+
+.bell-badge.alert {
+  background: var(--bad);
+}
+
+/* Topbar tùy biến */
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-drawer {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.crumb {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Chế độ nhà trên thanh trên (Prompt 01 - A5) */
+.top-mode-seg {
+  display: inline-flex;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.top-mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background-color .15s, color .15s;
+}
+
+.top-mode-btn.on {
+  background: var(--accent);
+  color: #062420;
+  font-weight: 600;
+}
+
+/* Responsive: 768px - 1023px (Sidebar tự động thu gọn) */
+@media (max-width: 1023px) and (min-width: 768px) {
+  #sidebar:not(.expanded) {
+    width: 62px;
+    padding: 14px 6px;
+    align-items: center;
+  }
+  #sidebar:not(.expanded) .side-brand {
+    padding: 4px 0 14px;
+    justify-content: center;
+    width: 100%;
+  }
+  #sidebar:not(.expanded) .side-brand .brand-text,
+  #sidebar:not(.expanded) .nav-label,
+  #sidebar:not(.expanded) .nav-badge,
+  #sidebar:not(.expanded) .nav-header,
+  #sidebar:not(.expanded) .room-submenu,
+  #sidebar:not(.expanded) .collapse-text {
+    display: none !important;
+  }
+  #sidebar:not(.expanded) .nav-item {
+    padding: 8px;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Responsive: Mobile < 768px */
+@media (max-width: 767px) {
+  .btn-drawer {
+    display: inline-flex;
+  }
+  #sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 16px rgba(0,0,0,.3);
+  }
+  #sidebar.drawer-open {
+    transform: translateX(0);
+  }
+  .drawer-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 90;
+    display: none;
+  }
+  .drawer-scrim.open {
+    display: block;
+  }
+  .top-mode-seg {
+    display: none;
+  }
+}
+

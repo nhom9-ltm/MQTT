@@ -1,7 +1,38 @@
 /* Bố cục trang: khung main, các lưới, vị trí toast và responsive.
  * Tách khỏi css/style.css (màu sắc, thẻ, nút...). PHẢI nạp SAU style.css để các @media ghi đè đúng thứ tự cũ. */
 
-main { padding: 20px 24px 32px; max-width: 1500px; margin: 0 auto; display: grid; gap: 20px; }
+main { padding: 20px 24px 32px; max-width: 1500px; margin: 0 auto; display: grid; gap: 20px; width: 100%; box-sizing: border-box; }
+
+/* Các trang đơn (Prompt 01) */
+.page { display: none; }
+.page.active { display: grid; gap: 20px; }
+
+/* Biểu đồ trên trang chủ: thu gọn 180px (Prompt 01 - B) */
+#page-home .chart-box { height: 180px; }
+
+/* Hàng tab phòng trên trang thiết bị: ẩn trên desktop (>= 768px) vì sidebar đã có menu phòng (Prompt 02 - 3.4) */
+@media (min-width: 768px) {
+  #page-devices .sec-head #roomTabs {
+    display: none !important;
+  }
+}
+
+/* Trang thông báo: hiển thị toàn màn hình, không giới hạn 340px (Prompt 05 - 3.1) */
+#page-alerts .alerts {
+  max-height: none;
+}
+
+/* Kịch bản nhanh (Prompt 01 - B) */
+.quick-scenes-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quick-scenes-panel .scenes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
 /* chế độ & kịch bản */
 .control { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 14px; }
