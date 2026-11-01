@@ -4,13 +4,19 @@ import argparse
 import os
 import sys
 
+if sys.platform == "win32":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main():
     p = argparse.ArgumentParser(description="API lịch sử nhà thông minh")
     p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--port", type=int, default=8001)
     args = p.parse_args()
     import uvicorn
     from BE.controller.api_controller import app

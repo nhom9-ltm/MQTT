@@ -8,138 +8,182 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="layout/layout.css">
+  <link rel="stylesheet" href="layout/sidebar.css">
   <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <div class="logo" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
-    </div>
-    <div>
-      <h1>Nhà thông minh</h1>
-      <p class="sub">MQTT · Mosquitto · ESP32</p>
-    </div>
-  </div>
 
-  <form class="conn" id="connForm" autocomplete="off">
-    <input id="brokerUrl" aria-label="Broker URL" spellcheck="false">
-    <input id="topicPrefix" aria-label="Topic prefix" class="short" title="Topic prefix">
-    <button type="submit" id="btnConnect" class="btn primary">Kết nối</button>
-    <button type="button" id="btnDemo" class="btn ghost" title="Giả lập broker, thiết bị và automation ngay trong trình duyệt">Demo</button>
-    <a class="btn ghost" href="history.html" title="Biểu đồ lịch sử từ logger (cần chạy API)" style="text-decoration:none;display:inline-flex;align-items:center">Lịch sử</a>
-    <span class="pill" id="connPill"><i></i><span>Chưa kết nối</span></span>
-  </form>
-</header>
+<div class="app-shell">
+  <!-- Sidebar điều hướng bên trái (Prompt 01, 02) -->
+  <aside id="sidebar"></aside>
 
-<div class="toasts" id="toasts" aria-live="assertive"></div>
+  <!-- Lớp phủ mờ đóng menu trên mobile -->
+  <div class="drawer-scrim" id="drawerScrim"></div>
 
-<main>
-  <!-- Chế độ nhà + kịch bản -->
-  <section class="control">
-    <div class="panel mode-panel">
-      <div class="panel-head">
-        <h3>Chế độ</h3>
-        <span class="pill sm" id="enginePill"><i></i><span>Automation: chưa thấy</span></span>
+  <!-- Vùng nội dung chính -->
+  <div class="main-wrap">
+    <!-- Thanh trên cùng (Topbar) -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button type="button" class="btn-drawer" id="btnDrawer" aria-label="Mở menu">☰</button>
+        <div class="crumb" id="pageCrumb">Tổng quan</div>
       </div>
-      <div class="seg mode-seg" id="modeSeg">
-        <button data-mode="home">Ở nhà</button>
-        <button data-mode="away">Vắng nhà</button>
-        <button data-mode="night">Ban đêm</button>
-      </div>
-    </div>
-    <div class="panel scene-panel">
-      <div class="panel-head"><h3>Kịch bản</h3><span class="hint">publish <code id="sceneTopic">home/_auto/scene/set</code></span></div>
-      <div class="scenes" id="scenes"><span class="muted">Chạy <code>python BE/run_automation.py</code> để có kịch bản.</span></div>
-    </div>
-  </section>
 
-  <!-- KPI -->
-  <section class="kpis">
-    <div class="kpi"><span class="k-label">Nhiệt độ trong nhà</span><span class="k-val" id="kTemp">—</span></div>
-    <div class="kpi"><span class="k-label">Độ ẩm</span><span class="k-val" id="kHum">—</span></div>
-    <div class="kpi"><span class="k-label">Công suất đang dùng</span><span class="k-val" id="kPower">—</span></div>
-    <div class="kpi"><span class="k-label">Đèn đang bật</span><span class="k-val" id="kLights">—</span></div>
-    <div class="kpi"><span class="k-label">Cửa chính</span><span class="k-val" id="kDoor">—</span></div>
-    <div class="kpi"><span class="k-label">Thiết bị online</span><span class="k-val" id="kOnline">0/0</span></div>
-    <div class="kpi"><span class="k-label">Client trên broker <em>$SYS</em></span><span class="k-val" id="kClients">—</span></div>
-    <div class="kpi"><span class="k-label">Message / phút</span><span class="k-val" id="kRate">0</span></div>
-  </section>
-
-  <!-- Phòng & thiết bị -->
-  <section>
-    <div class="sec-head">
-      <div class="tabs" id="roomTabs" role="tablist"><button class="on" data-room="all">Tất cả</button></div>
-      <span class="hint">Tự phát hiện thiết bị qua wildcard <code id="wcHint">home/+/+/+</code></span>
-    </div>
-    <div id="rooms">
-      <div class="empty" id="emptyDevices">
-        Chưa có thiết bị. Chạy <code>python BE/run_simulator.py</code>, nạp code cho ESP32, hoặc bấm <b>Demo</b>.
-      </div>
-    </div>
-  </section>
-
-  <!-- Biểu đồ -->
-  <section class="charts">
-    <div class="panel">
-      <div class="panel-head">
-        <h3>Nhiệt độ các phòng</h3>
-        <div class="seg sm" id="rangeSeg">
-          <button data-range="300" class="on">5 phút</button>
-          <button data-range="900">15 phút</button>
-          <button data-range="1800">30 phút</button>
+      <div class="topbar-right">
+        <!-- Chế độ nhà nhanh trên thanh trên (Prompt 01 - A5) -->
+        <div class="top-mode-seg" id="topModeSeg">
+          <button type="button" class="top-mode-btn" data-mode="home">Ở nhà</button>
+          <button type="button" class="top-mode-btn" data-mode="away">Vắng nhà</button>
+          <button type="button" class="top-mode-btn" data-mode="night">Ban đêm</button>
         </div>
+
+        <!-- Nút icon chuông thông báo kế bên phần kết nối (Prompt 05 & User request) -->
+        <a href="#/alerts" class="bell-btn" id="btnBell" aria-label="Thông báo" title="Xem thông báo">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="bell-badge" id="bellBadge" hidden>0</span>
+        </a>
+
+        <!-- Form kết nối (giữ nguyên tất cả id và phần tử cho app.js) -->
+        <form class="conn" id="connForm" autocomplete="off">
+          <input id="brokerUrl" aria-label="Broker URL" spellcheck="false">
+          <input id="topicPrefix" aria-label="Topic prefix" class="short" title="Topic prefix">
+          <button type="submit" id="btnConnect" class="btn primary">Kết nối</button>
+          <button type="button" id="btnDemo" class="btn ghost" title="Giả lập broker, thiết bị và automation ngay trong trình duyệt">Demo</button>
+          <span class="pill" id="connPill"><i></i><span>Chưa kết nối</span></span>
+        </form>
       </div>
-      <div class="chart-box"><canvas id="climateChart"></canvas></div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><h3>Công suất tiêu thụ</h3><span class="hint" id="energyHint"></span></div>
-      <div class="chart-box"><canvas id="powerChart"></canvas></div>
-    </div>
-  </section>
+    </header>
 
-  <section class="bottom">
-    <!-- Luật tự động -->
-    <div class="panel">
-      <div class="panel-head"><h3>Luật tự động</h3><span class="hint">BE/config/rules.json</span></div>
-      <ul class="rules" id="rules"><li class="muted">Automation engine chưa chạy.</li></ul>
-    </div>
+    <!-- Thông báo nổi (toasts) -->
+    <div class="toasts" id="toasts" aria-live="assertive"></div>
 
-    <!-- Thông báo -->
-    <div class="panel">
-      <div class="panel-head"><h3>Thông báo</h3><button class="btn ghost sm" id="alertClear">Xóa</button></div>
-      <ul class="alerts" id="alerts"><li class="muted">Chưa có thông báo.</li></ul>
-    </div>
-  </section>
+    <main>
+      <!-- TRANG 1: TỔNG QUAN (Prompt 01) -->
+      <section class="page active" id="page-home">
+        <!-- KPI -->
+        <div class="kpis">
+          <div class="kpi"><span class="k-label">Nhiệt độ trong nhà</span><span class="k-val" id="kTemp">—</span></div>
+          <div class="kpi"><span class="k-label">Độ ẩm</span><span class="k-val" id="kHum">—</span></div>
+          <div class="kpi"><span class="k-label">Công suất đang dùng</span><span class="k-val" id="kPower">—</span></div>
+          <div class="kpi"><span class="k-label">Đèn đang bật</span><span class="k-val" id="kLights">—</span></div>
+          <div class="kpi"><span class="k-label">Cửa chính</span><span class="k-val" id="kDoor">—</span></div>
+          <div class="kpi"><span class="k-label">Thiết bị online</span><span class="k-val" id="kOnline">0/0</span></div>
+          <div class="kpi"><span class="k-label">Client trên broker <em>$SYS</em></span><span class="k-val" id="kClients">—</span></div>
+          <div class="kpi"><span class="k-label">Message / phút</span><span class="k-val" id="kRate">0</span></div>
+        </div>
 
-  <!-- Message log -->
-  <section class="panel">
-    <div class="panel-head">
-      <h3>Message log</h3>
-      <div class="log-tools">
-        <input id="logFilter" placeholder="Lọc topic…" spellcheck="false">
-        <label class="chk"><input type="checkbox" id="logHideState"> Ẩn state &amp; $SYS</label>
-        <label class="chk"><input type="checkbox" id="logPause"> Tạm dừng</label>
-        <button class="btn ghost sm" id="logClear">Xóa</button>
-      </div>
-    </div>
-    <div class="log-wrap">
-      <table class="log">
-        <thead><tr><th>Giờ</th><th>Topic</th><th>QoS</th><th>Retain</th><th>Payload</th></tr></thead>
-        <tbody id="logBody"></tbody>
-      </table>
-    </div>
-  </section>
+        <!-- Kịch bản nhanh (Prompt 01 - B) -->
+        <div class="panel quick-scenes-panel">
+          <div class="panel-head"><h3>Kịch bản nhanh</h3></div>
+          <div class="scenes" id="quickScenes"><span class="muted">Đang tải kịch bản...</span></div>
+        </div>
 
-  <footer class="foot">
-    Dashboard client có LWT riêng: <code id="dashWill">home/_dashboard/…/status</code> · keep-alive <span id="kaInfo">30</span>s ·
-    lệnh gửi lên <code>…/set</code>, giao diện chỉ đổi khi thiết bị báo lại <code>…/state</code>
-  </footer>
-</main>
+        <!-- Biểu đồ -->
+        <div class="charts">
+          <div class="panel">
+            <div class="panel-head">
+              <h3>Nhiệt độ các phòng</h3>
+              <div class="seg sm" id="rangeSeg">
+                <button data-range="300" class="on">5 phút</button>
+                <button data-range="900">15 phút</button>
+                <button data-range="1800">30 phút</button>
+              </div>
+            </div>
+            <div class="chart-box"><canvas id="climateChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Công suất tiêu thụ</h3><span class="hint" id="energyHint"></span></div>
+            <div class="chart-box"><canvas id="powerChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRANG 2: THIẾT BỊ (Prompt 02) -->
+      <section class="page" id="page-devices">
+        <div class="sec-head">
+          <div class="tabs" id="roomTabs" role="tablist"><button class="on" data-room="all">Tất cả</button></div>
+          <span class="hint">Tự phát hiện thiết bị qua wildcard <code id="wcHint">home/+/+/+</code></span>
+        </div>
+        <div id="rooms">
+          <div class="empty" id="emptyDevices">
+            Chưa có thiết bị. Chạy <code>python BE/run_simulator.py</code>, nạp code cho ESP32, hoặc bấm <b>Demo</b>.
+          </div>
+        </div>
+      </section>
+
+      <!-- TRANG 3: KỊCH BẢN & CHẾ ĐỘ (Prompt 03) -->
+      <section class="page" id="page-scenes">
+        <section class="control">
+          <div class="panel mode-panel">
+            <div class="panel-head">
+              <h3>Chế độ</h3>
+              <span class="pill sm" id="enginePill"><i></i><span>Automation: chưa thấy</span></span>
+            </div>
+            <div class="seg mode-seg" id="modeSeg">
+              <button data-mode="home">Ở nhà</button>
+              <button data-mode="away">Vắng nhà</button>
+              <button data-mode="night">Ban đêm</button>
+            </div>
+          </div>
+          <div class="panel scene-panel">
+            <div class="panel-head"><h3>Kịch bản</h3><span class="hint">publish <code id="sceneTopic">home/_auto/scene/set</code></span></div>
+            <div class="scenes" id="scenes"><span class="muted">Chạy <code>python BE/run_automation.py</code> để có kịch bản.</span></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- TRANG 4: LUẬT TỰ ĐỘNG (Prompt 04) -->
+      <section class="page" id="page-rules">
+        <div class="panel">
+          <div class="panel-head"><h3>Luật tự động</h3><span class="hint">BE/config/rules.json</span></div>
+          <ul class="rules" id="rules"><li class="muted">Automation engine chưa chạy.</li></ul>
+        </div>
+      </section>
+
+      <!-- TRANG 5: THÔNG BÁO (Prompt 05) -->
+      <section class="page" id="page-alerts">
+        <div class="panel">
+          <div class="panel-head"><h3>Thông báo</h3><button class="btn ghost sm" id="alertClear">Xóa</button></div>
+          <ul class="alerts" id="alerts"><li class="muted">Chưa có thông báo.</li></ul>
+        </div>
+      </section>
+
+      <!-- TRANG 6: MESSAGE LOG (Prompt 07) -->
+      <section class="page" id="page-log">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Message log</h3>
+            <div class="log-tools">
+              <input id="logFilter" placeholder="Lọc topic…" spellcheck="false">
+              <label class="chk"><input type="checkbox" id="logHideState"> Ẩn state &amp; $SYS</label>
+              <label class="chk"><input type="checkbox" id="logPause"> Tạm dừng</label>
+              <button class="btn ghost sm" id="logClear">Xóa</button>
+            </div>
+          </div>
+          <div class="log-wrap">
+            <table class="log">
+              <thead><tr><th>Giờ</th><th>Topic</th><th>QoS</th><th>Retain</th><th>Payload</th></tr></thead>
+              <tbody id="logBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer class="foot">
+        Dashboard client có LWT riêng: <code id="dashWill">home/_dashboard/…/status</code> · keep-alive <span id="kaInfo">30</span>s ·
+        lệnh gửi lên <code>…/set</code>, giao diện chỉ đổi khi thiết bị báo lại <code>…/state</code>
+      </footer>
+    </main>
+  </div>
+</div>
 
 <script src="js/auth.js"></script>
 <script src="mock/demo.js"></script>
 <script src="js/app.js"></script>
+<script src="js/nav.js"></script>
 </body>
 </html>
