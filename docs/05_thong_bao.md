@@ -61,7 +61,7 @@ Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (m�
 ## 5. Cách kiểm tra
 
 1. `docker compose up -d`, `python BE/run_simulator.py`, `python BE/run_automation.py`; mở http://localhost:8080/#/home (hoặc `?demo=1`).
-2. Ở trang Tổng quan, chạy một kịch bản và kích hoạt gas để tạo thông báo; theo dõi huy hiệu; vào trang Thông báo; thử Xóa.
+2. Ở Trang chủ, chạy một kịch bản và kích hoạt gas để tạo thông báo; theo dõi huy hiệu; vào trang Thông báo; thử Xóa.
 3. Kiểm tra ở 3 độ rộng và 2 chế độ màu.
 
 ## 6. Báo cáo khi hoàn thành (bắt buộc, đúng định dạng)

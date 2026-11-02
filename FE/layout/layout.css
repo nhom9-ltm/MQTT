@@ -7,6 +7,21 @@ main { padding: 20px 24px 32px; max-width: 1500px; margin: 0 auto; display: grid
 .page { display: none; }
 .page.active { display: grid; gap: 20px; }
 
+/* Chọn sẵn trang ngay từ lần vẽ đầu (thuộc tính data-route do script trong <head> đặt, nav.js gỡ sau khi sẵn sàng).
+   Nhờ vậy mở thẳng #/devices không bị nháy qua trang chủ trước. */
+html[data-route] .page { display: none; }
+html[data-route="home"] #page-home,
+html[data-route="devices"] #page-devices,
+html[data-route="scenes"] #page-scenes,
+html[data-route="rules"] #page-rules,
+html[data-route="alerts"] #page-alerts,
+html[data-route="history"] #page-history,
+html[data-route="log"] #page-log { display: grid; gap: 20px; }
+
+/* Tắt viền nháy trên thẻ thiết bị mỗi khi có "state" mới (app.js vẫn thêm lớp .flash như cũ).
+   Các thiết bị báo cùng một nhịp nên cả lưới thẻ chớp đồng loạt vài giây một lần. */
+.dev.flash::after { animation: none; }
+
 /* Biểu đồ trên trang chủ: thu gọn 180px (Prompt 01 - B) */
 #page-home .chart-box { height: 180px; }
 
@@ -44,6 +59,58 @@ main { padding: 20px 24px 32px; max-width: 1500px; margin: 0 auto; display: grid
 .sec-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 #rooms { display: grid; gap: 22px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+
+/* Trang Thiết bị: mỗi hàng 4 thẻ, thẻ to hơn. Màn hình hẹp hơn thì giảm dần 3 → 2 → 1 cột để thẻ không bị chật. */
+#rooms .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 1399px) { #rooms .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 999px)  { #rooms .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 599px)  { #rooms .grid { grid-template-columns: 1fr; } }
+#rooms { gap: 30px; }
+.room-head h2 { font-size: 18px; }
+.room-sum { font-size: 13px; }
+
+/* Phóng to thẻ thiết bị (chỉ kích thước/khoảng cách/cỡ chữ, màu giữ nguyên) */
+#rooms .dev { padding: 18px 20px; gap: 14px; min-height: 190px; }
+#rooms .dev-head { gap: 14px; }
+#rooms .ico-wrap { width: 46px; height: 46px; border-radius: 12px; }
+#rooms .ico { width: 26px; height: 26px; }
+#rooms .dev-name { font-size: 16.5px; }
+#rooms .dev-sub { font-size: 13.5px; }
+#rooms .sw { width: 52px; height: 30px; }
+#rooms .sw i { top: 4px; left: 4px; width: 22px; height: 22px; }
+#rooms .sw[aria-checked="true"] i { transform: translateX(22px); }
+#rooms .dev-body { gap: 12px; }
+#rooms .rng, #rooms .muted-row, #rooms .sense, #rooms .ac-room { font-size: 13.5px; }
+#rooms .big b { font-size: 34px; }
+#rooms .v b { font-size: 36px; }
+#rooms .ac-target b { font-size: 30px; }
+#rooms .spark { height: 48px; }
+#rooms .curtain-vis { height: 34px; }
+#rooms .dev .btn, #rooms .dev .seg button { font-size: 13.5px; }
+#rooms .dev-foot { font-size: 12.5px; }
+
+/* Trang Luật tự động: mỗi luật là một thẻ riêng, mỗi hàng 4 thẻ (giảm dần 3 → 2 → 1 khi màn hình hẹp).
+   HTML do app.js sinh ra (ul#rules > li) giữ nguyên, chỉ đổi cách trình bày bằng CSS; màu dùng biến sẵn có. */
+#page-rules > .panel { background: none; border: 0; padding: 0; }
+#page-rules .panel-head { margin-bottom: 16px; }
+#page-rules .panel-head h3 { font-size: 18px; }
+#page-rules .rules { max-height: none; overflow: visible; gap: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; }
+#page-rules .rules li { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px 20px; min-height: 130px; align-content: start; }
+#page-rules .rules li:hover { background: var(--panel); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+#page-rules .rules li > div { order: 1; gap: 6px; }
+#page-rules .rules li .sw { order: 2; margin-top: 2px; width: 52px; height: 30px; }
+#page-rules .rules li .sw i { top: 4px; left: 4px; width: 22px; height: 22px; }
+#page-rules .rules li .sw[aria-checked="true"] i { transform: translateX(22px); }
+#page-rules .rules li b { font-size: 16px; font-weight: 600; line-height: 1.35; }
+#page-rules .rules li small { font-size: 13.5px; line-height: 1.5; }
+#page-rules .rules li.muted { grid-column: 1 / -1; display: block; text-align: center; min-height: 0; padding: 28px;
+  background: none; border: 1px dashed var(--line); color: var(--muted); }
+@media (max-width: 1399px) { #page-rules .rules { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 999px)  { #page-rules .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 599px)  { #page-rules .rules { grid-template-columns: 1fr; } }
 
 /* biểu đồ, luật, thông báo */
 .charts, .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

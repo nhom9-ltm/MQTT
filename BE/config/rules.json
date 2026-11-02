@@ -68,10 +68,11 @@
   {
     "id": "living_idle",
     "name": "Không ai trong phòng khách 2 phút → tắt đèn, quạt",
-    "description": "Tiết kiệm điện khi không có chuyển động",
+    "description": "Tiết kiệm điện khi không có chuyển động (không áp dụng khi TV đang bật, ví dụ lúc xem phim)",
     "enabled": true,
     "trigger": {"device": "living/motion", "field": "motion", "op": "==", "value": false, "for": 120},
-    "conditions": [{"device": "living/light", "field": "on", "op": "==", "value": true}],
+    "conditions": [{"device": "living/light", "field": "on", "op": "==", "value": true},
+                   {"device": "living/tv-plug", "field": "on", "op": "==", "value": false}],
     "actions": [
       {"device": "living/light", "set": {"on": false}},
       {"device": "living/fan", "set": {"on": false}},

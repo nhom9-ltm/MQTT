@@ -3,6 +3,7 @@
     "id": "home",
     "name": "Về nhà",
     "icon": "🏠",
+    "for_mode": "home",
     "actions": [
       {"mode": "home"},
       {"device": "entrance/lock", "set": {"locked": false}},
@@ -15,11 +16,12 @@
     "id": "away",
     "name": "Ra khỏi nhà",
     "icon": "🚪",
+    "for_mode": "away",
     "actions": [
       {"type": "light", "set": {"on": false}},
       {"type": "fan", "set": {"on": false}},
       {"type": "ac", "set": {"on": false}},
-      {"device": "living/tv-plug", "set": {"on": false}},
+      {"type": "plug", "set": {"on": false}},
       {"type": "curtain", "set": {"position": 0}},
       {"type": "lock", "set": {"locked": true}},
       {"delay": 3},
@@ -30,13 +32,15 @@
     "id": "sleep",
     "name": "Đi ngủ",
     "icon": "🌙",
+    "for_mode": "night",
     "actions": [
       {"mode": "night"},
       {"type": "light", "except": ["bedroom/light"], "set": {"on": false}},
       {"device": "bedroom/light", "set": {"on": true, "brightness": 10}},
       {"device": "bedroom/ac", "set": {"on": true, "mode": "cool", "target": 27}},
       {"device": "living/ac", "set": {"on": false}},
-      {"device": "living/tv-plug", "set": {"on": false}},
+      {"type": "fan", "set": {"on": false}},
+      {"type": "plug", "set": {"on": false}},
       {"type": "curtain", "set": {"position": 0}},
       {"type": "lock", "set": {"locked": true}}
     ]
@@ -48,7 +52,7 @@
     "actions": [
       {"mode": "home"},
       {"type": "curtain", "set": {"position": 100}},
-      {"device": "bedroom/light", "set": {"on": true, "brightness": 80}},
+      {"device": "bedroom/light", "set": {"on": false}},
       {"device": "bedroom/ac", "set": {"on": false}}
     ]
   },

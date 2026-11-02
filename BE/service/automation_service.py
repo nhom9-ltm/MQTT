@@ -16,22 +16,35 @@ import json
 import threading
 import time
 
+from BE.repository.scene_repository import custom_path_for, load_custom_scenes, save_custom_scenes
 from BE.service.rule_helpers import MODES, OPS, WARMUP, SafeDict, in_window, load_json
+from BE.service.scene_validation import SceneError, validate_scene
 
 
 class AutomationService:
-    def __init__(self, prefix: str, rules_path: str, scenes_path: str, publish):
-        """publish(topic, payload, qos=…, retain=…) — thường là client.publish của paho."""
+    def __init__(self, prefix: str, rules_path: str, scenes_path: str, publish, custom_scenes_path: str | None = None):
+        """publish(topic, payload, qos=…, retain=…) — thường là client.publish của paho.
+
+        Kịch bản viết tay nằm ở scenes_path; kịch bản người dùng tạo từ dashboard được lưu riêng ở
+        custom_scenes_path (mặc định: <scenes_path>.custom.json) và nạp chung vào self.scenes.
+        """
         self.p = prefix
         self.rules_path = rules_path
         self.publish = publish
         self.rules: list[dict] = load_json(rules_path)
-        self.scenes: list[dict] = load_json(scenes_path)
+        self.custom_scenes_path = custom_scenes_path or custom_path_for(scenes_path)
+        base: list[dict] = load_json(scenes_path)
+        taken = {s["id"] for s in base}
+        custom = [{**s, "custom": True} for s in load_custom_scenes(self.custom_scenes_path) if s["id"] not in taken]
+        self.scenes: list[dict] = base + custom
         self.devices: dict[str, dict] = {}      # "phòng/thiết bị" -> {type, online, node, state, ...}
         self.mode: str | None = None
         self.rt = {r["id"]: {"since": None, "fired": False, "last": 0.0, "last_ms": None} for r in self.rules}
         self.lock = threading.RLock()
         self.warm_until = float("inf")
+        # Số thứ tự "đợt điều khiển hiện hành": mỗi lần chạy kịch bản hoặc người dùng đổi chế độ thì tăng lên,
+        # các kịch bản cũ còn đang chạy dở (ví dụ đang chờ delay) sẽ tự dừng thay vì ghi đè lên kết quả mới.
+        self.scene_gen = 0
 
         self.t_engine = f"{self.p}/_auto/engine/status"
         self.t_mode = f"{self.p}/_auto/mode/state"
@@ -87,9 +100,24 @@ class AutomationService:
                 self.mode = data["mode"]
                 self.evaluate()
         elif what == "mode" and kind == "set":
-            self.set_mode(data.get("mode"), src)
+            if data.get("mode") not in MODES:
+                self.notify("warn", f"Chế độ không hợp lệ: {data.get('mode')!r}", src)
+                return
+            mode = data["mode"]
+            # Người dùng tự chọn chế độ -> chạy HẲN kịch bản gắn với chế độ đó (khai báo "for_mode" trong scenes.json):
+            # Ở nhà = "Về nhà", Vắng nhà = "Ra khỏi nhà", Ban đêm = "Đi ngủ". Kịch bản tự đặt chế độ ở đúng bước của nó.
+            # Chỉ áp dụng ở đây (lệnh từ người dùng); kịch bản/luật đổi chế độ qua set_mode nên không bị chạy lặp.
+            scene = next((s for s in self.scenes if s.get("for_mode") == mode), None)
+            if scene and mode != self.mode:
+                self.run_scene(scene["id"], src)
+            else:                           # đã ở chế độ này (hoặc chưa có kịch bản gắn): không điều khiển thiết bị
+                self.scene_gen += 1         # nhưng vẫn hủy kịch bản đang chờ đổi chế độ
+                self.set_mode(mode, src)
         elif what == "scene" and kind == "set":
-            self.run_scene(data.get("scene"), src)
+            if "add" in data:                       # {"add": {name, icon, actions}} — thêm kịch bản mới từ dashboard
+                self.add_scene(data["add"], src)
+            else:
+                self.run_scene(data.get("scene"), src)
         elif what == "rule" and kind == "set":
             self.set_rule_enabled(data.get("id"), bool(data.get("enabled", True)), src)
 
@@ -166,21 +194,46 @@ class AutomationService:
     # =================================================================
     #  Hành động
     # =================================================================
-    def run_actions(self, actions: list, ctx: dict, source: str):
-        """Chạy trên thread riêng để "delay" không chặn việc nhận message."""
+    def _wait(self, seconds: float, gen) -> bool:
+        """Chờ `seconds` giây; trả False nếu trong lúc chờ có kịch bản/chế độ mới thay thế (gen đã đổi)."""
+        end = time.time() + seconds
+        while True:
+            if gen is not None and gen != self.scene_gen:
+                return False
+            left = end - time.time()
+            if left <= 0:
+                return True
+            time.sleep(min(0.1, left))
+
+    def run_actions(self, actions: list, ctx: dict, source: str, gen=None, report=None, label: str = ""):
+        """Chạy trên thread riêng để "delay" không chặn việc nhận message.
+
+        gen    : số thứ tự đợt điều khiển (chỉ kịch bản truyền vào); bị thay thế thì dừng ngay, không chạy tiếp.
+        report : danh sách thiết bị không điều khiển được; cuối kịch bản sẽ báo lên dashboard (xem _finish_scene).
+        """
         def worker():
             for a in actions:
+                if gen is not None and gen != self.scene_gen:
+                    return
                 if "delay" in a:
-                    time.sleep(a["delay"])
+                    if not self._wait(a["delay"], gen):
+                        return
                     continue
                 with self.lock:
-                    self.do_action(a, ctx, source)
+                    if gen is not None and gen != self.scene_gen:
+                        return
+                    self.do_action(a, ctx, source, report)
+            if report is not None:
+                with self.lock:
+                    self._finish_scene(label, report, source)
         threading.Thread(target=worker, daemon=True).start()
 
-    def do_action(self, a: dict, ctx: dict, source: str):
+    def do_action(self, a: dict, ctx: dict, source: str, report=None):
         if "set" in a:
             for key in self.select(a):
                 self.send(key, a["set"], source)
+            if report is not None:
+                report.extend(self.unreachable(a))
         elif "scene" in a:
             self.run_scene(a["scene"], source)
         elif "mode" in a:
@@ -197,6 +250,26 @@ class AutomationService:
                 if d.get("type") == a["type"] and k not in skip and self.is_online(k)
                 and (not a.get("room") or d["room"] == a["room"])]
 
+    def unreachable(self, a: dict) -> list[str]:
+        """Thiết bị mà hành động `a` nhắm tới nhưng đang offline (lệnh chọn theo loại bỏ qua chúng, lệnh gán thẳng
+        thiết bị vẫn gửi nhưng có thể bị mất) — dùng để báo cho người dùng biết kịch bản chưa áp dụng đủ."""
+        if "device" in a:
+            return [] if self.is_online(a["device"]) else [a["device"]]
+        skip = set(a.get("except", []))
+        return [k for k, d in sorted(self.devices.items())
+                if d.get("type") == a["type"] and k not in skip and not self.is_online(k)
+                and (not a.get("room") or d["room"] == a["room"])]
+
+    def _finish_scene(self, label: str, report: list, source: str):
+        """Cuối kịch bản: nếu có thiết bị không điều khiển được thì báo lên dashboard (khóa cửa → mức nghiêm trọng)."""
+        missed = sorted(set(report))
+        if not missed:
+            return
+        locks = [k for k in missed if self.devices.get(k, {}).get("type") == "lock"]
+        level = "critical" if locks else "warn"
+        extra = " — CỬA CHƯA ĐƯỢC KHÓA, hãy kiểm tra thủ công!" if locks else ""
+        self.notify(level, f"Kịch bản “{label}” chưa điều khiển được (đang offline): {', '.join(missed)}{extra}", source)
+
     def send(self, key: str, payload: dict, source: str):
         if not self.is_online(key):
             print(f"  ! {key} đang offline — lệnh có thể bị mất")
@@ -209,10 +282,40 @@ class AutomationService:
         scene = next((s for s in self.scenes if s["id"] == scene_id), None)
         if not scene:
             print(f"Không có kịch bản '{scene_id}'")
+            self.notify("warn", f"Không có kịch bản “{scene_id}”", source)
             return
         print(f"[{time.strftime('%H:%M:%S')}] 🎬 Kịch bản “{scene['name']}” (từ {source})")
         self.notify("info", f"Chạy kịch bản “{scene['name']}”", source)
-        self.run_actions(scene["actions"], SafeDict(), f"scene:{scene_id}")
+        self.scene_gen += 1                 # kịch bản mới thay thế mọi kịch bản cũ đang chạy dở
+        self.run_actions(scene["actions"], SafeDict(), f"scene:{scene_id}",
+                         gen=self.scene_gen, report=[], label=scene["name"])
+
+    def add_scene(self, data, source: str):
+        """Thêm kịch bản do người dùng tạo: kiểm tra -> lưu file -> nạp vào engine -> báo cho mọi dashboard.
+
+        Sai dữ liệu hoặc không lưu được thì KHÔNG thêm gì và báo lý do lên dashboard.
+        """
+        custom = [s for s in self.scenes if s.get("custom")]
+        try:
+            scene = validate_scene(
+                data, self.devices, MODES,
+                taken_ids={s["id"] for s in self.scenes},
+                taken_names={s["name"].casefold() for s in self.scenes},
+                custom_count=len(custom))
+        except SceneError as e:
+            self.notify("warn", f"Không thêm được kịch bản: {e}", source)
+            return
+        scene["custom"] = True
+        try:
+            save_custom_scenes(self.custom_scenes_path,
+                               [{k: v for k, v in s.items() if k != "custom"} for s in custom + [scene]])
+        except OSError as e:
+            self.notify("warn", f"Không lưu được kịch bản “{scene['name']}”: {e}", source)
+            return
+        self.scenes.append(scene)
+        print(f"[{time.strftime('%H:%M:%S')}] ➕ Thêm kịch bản “{scene['name']}” ({len(scene['actions'])} hành động, từ {source})")
+        self.publish_engine()
+        self.notify("info", f"Đã thêm kịch bản “{scene['name']}”", source)
 
     def set_mode(self, mode: str, source: str):
         if mode not in MODES:
@@ -252,7 +355,8 @@ class AutomationService:
             "rules": [{"id": r["id"], "name": r["name"], "description": r.get("description", ""),
                        "enabled": r.get("enabled", True), "last_fired": self.rt[r["id"]]["last_ms"]}
                       for r in self.rules],
-            "scenes": [{"id": s["id"], "name": s["name"], "icon": s.get("icon", "")} for s in self.scenes],
+            "scenes": [{"id": s["id"], "name": s["name"], "icon": s.get("icon", ""), "custom": bool(s.get("custom"))}
+                       for s in self.scenes],
         }
         if reason:
             payload["reason"] = reason
