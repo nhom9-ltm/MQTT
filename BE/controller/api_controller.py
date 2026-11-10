@@ -10,12 +10,17 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from BE.controller.admin_controller import router as admin_router
+from BE.controller.auth_controller import router as auth_router
 from BE.repository.history_repository import DatabaseUnavailable
 from BE.service import history_service
 
 app = FastAPI(title="Smart Home History API")
-# Dashboard chạy ở cổng khác (8080) nên phải cho phép CORS; API chỉ có GET, không ghi gì.
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
+# Dashboard chạy ở cổng khác (8080) nên phải cho phép CORS. Phiên gửi qua header Authorization, không dùng cookie.
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"],
+                   allow_headers=["Authorization", "Content-Type"])
+app.include_router(auth_router)
+app.include_router(admin_router)
 
 
 @app.exception_handler(DatabaseUnavailable)

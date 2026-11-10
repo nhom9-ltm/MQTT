@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nhà thông minh — MQTT</title>
+  <script src="js/session.js" data-guard="user"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
@@ -11,6 +12,7 @@
   <link rel="stylesheet" href="layout/sidebar.css">
   <link rel="stylesheet" href="css/history.css">
   <link rel="stylesheet" href="css/scene-editor.css">
+  <link rel="stylesheet" href="css/auth.css">
   <script>
     /* Chọn sẵn trang theo #hash TRƯỚC lần vẽ đầu tiên, để không nháy trang chủ rồi mới nhảy sang trang khác.
        nav.js sẽ gỡ thuộc tính này khi router đã sẵn sàng. */
@@ -68,6 +70,13 @@
           <button type="button" id="btnDemo" class="btn ghost" title="Giả lập broker, thiết bị và automation ngay trong trình duyệt">Demo</button>
           <span class="pill" id="connPill"><i></i><span>Chưa kết nối</span></span>
         </form>
+
+        <!-- Tài khoản đang đăng nhập (js/session.js hiện khối này; chế độ Demo thì ẩn) -->
+        <div class="session-box" id="sessionBox" hidden>
+          <span class="session-email" id="sessionEmail"></span>
+          <a class="btn link" id="linkAdmin" href="admin.html" hidden>Quản trị</a>
+          <button type="button" class="btn ghost" id="btnLogout">Đăng xuất</button>
+        </div>
       </div>
     </header>
 

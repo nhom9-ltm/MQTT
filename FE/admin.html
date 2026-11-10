@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quản trị — Nhà thông minh</title>
+  <script src="js/session.js" data-guard="admin"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="layout/layout.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body class="admin-page">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+      </div>
+      <div>
+        <h1>Trang quản trị</h1>
+        <p class="sub">Nhà thông minh MQTT</p>
+      </div>
+    </div>
+    <div class="admin-actions">
+      <span class="pill sm" id="adminPill"><i></i><span>Đang tải</span></span>
+      <a class="btn link" href="index.html">Bảng điều khiển nhà</a>
+      <div class="session-box" id="sessionBox" hidden>
+        <span class="session-email" id="sessionEmail"></span>
+        <button type="button" class="btn ghost" id="btnLogout">Đăng xuất</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="admin-kpis" id="adminKpis" aria-label="Số liệu tổng quan"></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h3>Tài khoản</h3>
+        <button type="button" class="btn sm" id="btnRefresh">Làm mới</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Email</th><th>Họ tên</th><th>Vai trò</th><th>Trạng thái</th><th>Đăng nhập gần nhất</th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="admin-grid">
+      <section class="panel">
+        <div class="panel-head"><h3>Thiết bị theo phòng</h3></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Phòng</th><th>Mã</th><th class="num">Tổng</th><th class="num">Giả lập</th></tr></thead>
+            <tbody id="roomsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h3>Lịch sử đăng nhập</h3></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Thời gian</th><th>Email</th><th>Kết quả</th><th>IP</th></tr></thead>
+            <tbody id="loginsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>

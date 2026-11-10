@@ -18,7 +18,7 @@ Có 3 cách, chọn một:
 2. **Thư viện Python** (trong thư mục repo):
 
    ```powershell
-   pip install -r BE/requirements.txt
+   pip install -r BE/requirements.txt -r BE/requirements-extra.txt
    ```
 
 3. **Mosquitto** (broker MQTT):
@@ -37,7 +37,13 @@ Có 3 cách, chọn một:
 
 ### Chạy
 
-Mở **5 cửa sổ terminal**, tất cả đứng ở **thư mục gốc repo**, mỗi cửa sổ chạy một lệnh:
+Bật Docker Desktop và tạo database đăng nhập (chỉ cần chạy lần đầu, sau đó database tự bật cùng Docker):
+
+```powershell
+docker compose up -d database
+```
+
+Mở **6 cửa sổ terminal**, tất cả đứng ở **thư mục gốc repo**, mỗi cửa sổ chạy một lệnh:
 
 ```powershell
 # 1 — Broker (MQTT :1883, WebSocket :9001)
@@ -54,11 +60,15 @@ python BE/run_automation.py
 
 # 5 — (tùy chọn) Logger ghi lịch sử vào BE/data/smarthome.db
 python BE/run_logger.py
+
+# 6 — API đăng nhập, trang quản trị và trang Lịch sử (cổng 8001)
+python BE/run_api.py
 ```
 
 Thứ tự: chạy **broker trước**, các lệnh còn lại thứ tự nào cũng được.
 
-Mở trình duyệt: **<http://localhost:8080>** → dashboard tự kết nối broker và hiện 20 thiết bị.
+Mở trình duyệt: **<http://localhost:8080>** → đăng nhập → tài khoản `user` vào dashboard điều khiển, tài khoản
+`admin` vào trang quản trị (`admin.html`).
 
 Tắt: bấm `Ctrl+C` ở từng terminal.
 
@@ -96,12 +106,12 @@ Hoặc chạy hết trong Docker: `docker compose --profile full up -d`, xem log
 
 ---
 
-## C. Chế độ Demo (không cần cài gì)
+## C. Chế độ Demo (không cần đăng nhập)
 
 **Link công khai:** <https://nhom9-ltm.github.io/MQTT/> — mở là tự chạy Demo, mỗi người một ngôi nhà
 giả lập riêng. Link tự cập nhật mỗi khi có thay đổi trong `FE/` được push lên `main`.
 
-Trên máy mình: mở file `FE/index.html` bằng trình duyệt rồi bấm **Demo** (hoặc thêm `?demo=1` vào URL). Broker,
+Trên máy mình: mở `FE/index.html?demo=1`, hoặc bấm **Mở chế độ Demo** ở trang đăng nhập. Broker,
 20 thiết bị và automation đều được giả lập ngay trong trình duyệt. Cần Internet để tải thư viện MQTT.js
 và Chart.js.
 

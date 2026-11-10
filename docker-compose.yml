@@ -12,6 +12,27 @@ services:
       - mosquitto-data:/mosquitto/data
     restart: unless-stopped
 
+  # Database tài khoản và trang quản trị. Chạy lần đầu: docker compose up -d database
+  # Sau đó tự bật cùng Docker Desktop. BE/database/schema.sql chỉ được nạp khi volume còn trống.
+  database:
+    image: postgres:16-alpine
+    container_name: mqtt-database
+    environment:
+      POSTGRES_DB: smarthome
+      POSTGRES_USER: smarthome
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smarthome_dev}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - ./BE/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - database-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smarthome -d smarthome"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   # Web server tĩnh cho dashboard -> http://localhost:8080
   dashboard:
     image: nginx:alpine
@@ -51,3 +72,4 @@ services:
 
 volumes:
   mosquitto-data:
+  database-data:

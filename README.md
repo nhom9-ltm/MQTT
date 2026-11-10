@@ -55,7 +55,7 @@ Mở **http://localhost:8080**. Dashboard tự kết nối `ws://localhost:9001`
 <details>
 <summary><b>Chỉ muốn xem giao diện (không cần broker)</b></summary>
 
-Mở `FE/index.html` rồi bấm **Demo** (hoặc thêm `?demo=1` vào URL). Broker, 20 thiết bị và
+Mở `FE/index.html?demo=1`, hoặc bấm **Mở chế độ Demo** ở trang đăng nhập. Broker, 20 thiết bị và
 automation engine đều được giả lập trong trình duyệt, dùng cùng topic và cùng luật. Nên dùng làm
 phương án dự phòng khi thuyết trình.
 </details>
