@@ -10,13 +10,13 @@ venv/
 
 # Thông tin bí mật — mỗi người tự tạo
 .env
-BE/broker/passwd
-BE/broker/credentials.env
-esp32/**/secrets.h
+infra/broker/passwd
+infra/broker/credentials.env
+firmware/esp32/**/secrets.h
 
-# Dữ liệu broker khi chạy không Docker (BE/broker/mosquitto.local.conf)
-BE/broker/data/*
-!BE/broker/data/.gitkeep
+# Dữ liệu broker khi chạy không Docker (infra/broker/mosquitto.local.conf)
+infra/broker/data/*
+!infra/broker/data/.gitkeep
 
 # Kịch bản người dùng tự thêm trên dashboard (lưu khi chạy)
-BE/config/scenes.custom.json
+backend/config/scenes.custom.json

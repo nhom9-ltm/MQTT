@@ -1,13 +1,13 @@
 # Prompt 02 — Trang Thiết bị (+ danh sách phòng trên sidebar)
 
-> **Điều kiện tiên quyết:** prompt 01 đã hoàn thành. Trước khi làm, kiểm tra `FE/js/nav.js` tồn tại, `FE/index.html` có `<aside id="sidebar">` và `<section class="page" id="page-devices">`. **Nếu thiếu: dừng lại và báo cáo, không tự làm thay prompt 01.**
+> **Điều kiện tiên quyết:** prompt 01 đã hoàn thành. Trước khi làm, kiểm tra `frontend/js/nav.js` tồn tại, `frontend/index.html` có `<aside id="sidebar">` và `<section class="page" id="page-devices">`. **Nếu thiếu: dừng lại và báo cáo, không tự làm thay prompt 01.**
 
 ## 0. Quy tắc bắt buộc (đọc kỹ trước khi làm)
 
 1. **Chỉ làm đúng những gì prompt này yêu cầu.** Không thêm tính năng, không "tiện tay" sửa chỗ khác, không tối ưu hay refactor ngoài phạm vi.
-2. **Chỉ được sửa/tạo các file nêu ở mục 2 "Phạm vi file".** Mọi file khác — đặc biệt `BE/**`, `FE/js/app.js`, `FE/mock/demo.js`, `FE/css/style.css`, `docker-compose*.yml`, `.github/**`, các file `.md` — là **CẤM SỬA**, kể cả khi bạn thấy lỗi hoặc có cách làm hay hơn.
+2. **Chỉ được sửa/tạo các file nêu ở mục 2 "Phạm vi file".** Mọi file khác — đặc biệt `backend/**`, `frontend/js/app.js`, `frontend/mock/demo.js`, `frontend/css/style.css`, `docker-compose*.yml`, `.github/**`, các file `.md` — là **CẤM SỬA**, kể cả khi bạn thấy lỗi hoặc có cách làm hay hơn.
 3. **Không sửa logic hiện có.** Giữ nguyên id phần tử, tên hàm, topic MQTT, định dạng payload và hành vi của dashboard. Có thể di chuyển phần tử nhưng **không đổi/xóa id và class**.
-4. **Màu sắc giữ nguyên như đang áp dụng.** Chỉ dùng các biến CSS đã có trong `FE/css/style.css` (`--bg`, `--panel`, `--line`, `--text`, `--muted`, `--accent`, `--ok`, `--bad`, …). Không thêm giá trị màu mới, không đổi giá trị biến, không đổi font. Chế độ sáng/tối phải chạy như cũ. Wireframe chỉ là bố cục thuần xám: **không lấy màu từ wireframe**.
+4. **Màu sắc giữ nguyên như đang áp dụng.** Chỉ dùng các biến CSS đã có trong `frontend/css/style.css` (`--bg`, `--panel`, `--line`, `--text`, `--muted`, `--accent`, `--ok`, `--bad`, …). Không thêm giá trị màu mới, không đổi giá trị biến, không đổi font. Chế độ sáng/tối phải chạy như cũ. Wireframe chỉ là bố cục thuần xám: **không lấy màu từ wireframe**.
 5. **Khi có thắc mắc, mâu thuẫn hoặc phải làm việc ngoài phạm vi: KHÔNG tự đoán, KHÔNG tự quyết theo ý mình.** Nếu điều đó chặn cả công việc thì dừng lại và hỏi người dùng. Nếu chỉ chặn một phần thì bỏ qua phần đó, làm phần còn lại và ghi câu hỏi vào mục "Cần xác nhận" của báo cáo.
 6. Không cài thư viện, không thêm CDN/script ngoài, không đổi tên hay di chuyển file, không `git commit`/`git push`.
 7. Nếu phải bật/tắt dịch vụ để kiểm tra, trả về đúng trạng thái ban đầu khi xong.
@@ -19,14 +19,14 @@ Trang **Thiết bị** (`#/devices`) hiển thị các thẻ điều khiển thi
 - `#rooms` — chứa các `section.room[data-room="<id>"]`; trong mỗi phòng là các thẻ `.dev`. Thẻ thiết bị offline có thêm lớp `offline`.
 - `#kOnline` — chữ dạng `"19/20"` (online/tổng).
 
-Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (mục 1 — nhóm "Thiết bị" xổ xuống; mục 4 — hàng "Thiết bị (+ phòng)"; chú thích số 2).
+Tham chiếu bắt buộc: **wireframe** `frontend/layout/sidebar_wireframe.html` (mục 1 — nhóm "Thiết bị" xổ xuống; mục 4 — hàng "Thiết bị (+ phòng)"; chú thích số 2).
 
 ## 2. Phạm vi file
 
 | Việc | File |
 |---|---|
-| Được **sửa** | `FE/js/nav.js`, `FE/layout/sidebar.css`, `FE/layout/layout.css`, `FE/index.html` (chỉ phần bên trong `#page-devices`) |
-| Chỉ **đọc** | `FE/js/app.js`, `FE/css/style.css`, wireframe |
+| Được **sửa** | `frontend/js/nav.js`, `frontend/layout/sidebar.css`, `frontend/layout/layout.css`, `frontend/index.html` (chỉ phần bên trong `#page-devices`) |
+| Chỉ **đọc** | `frontend/js/app.js`, `frontend/css/style.css`, wireframe |
 | **CẤM** | mọi file còn lại |
 
 ## 3. Yêu cầu
@@ -65,7 +65,7 @@ Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (m�
 
 ## 5. Cách kiểm tra
 
-1. `docker compose up -d`, `python BE/run_simulator.py`, `python BE/run_automation.py`; mở http://localhost:8080/#/devices. Hoặc `?demo=1`.
+1. `docker compose up -d`, `python backend/run_simulator.py`, `python backend/run_automation.py`; mở http://localhost:8080/#/devices. Hoặc `?demo=1`.
 2. Với ESP32/Lab: dùng Demo hoặc simulator; thử tắt một phòng bằng cách bấm "Mất điện" trên thiết bị.
 3. Kiểm tra ở 1280px, 900px, 420px và cả hai chế độ sáng/tối.
 

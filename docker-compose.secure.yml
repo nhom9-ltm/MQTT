@@ -1,12 +1,12 @@
 # Bản ghi đè để bật xác thực + ACL cho broker. Không sửa docker-compose.yml.
-#   python BE/broker/setup_auth.py
-#   docker compose --env-file BE/broker/credentials.env -f docker-compose.yml -f docker-compose.secure.yml up -d --force-recreate mosquitto
+#   python infra/broker/setup_auth.py
+#   docker compose --env-file infra/broker/credentials.env -f docker-compose.yml -f docker-compose.secure.yml up -d --force-recreate mosquitto
 # Quay lại chế độ mở (anonymous):  docker compose up -d --force-recreate mosquitto
 services:
   mosquitto:
     volumes:
-      - ./BE/broker/mosquitto.secure.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./BE/broker/passwd:/mosquitto/config/passwd:ro
+      - ./infra/broker/mosquitto.secure.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/broker/passwd:/mosquitto/config/passwd:ro
 
   # Profile "full": cho automation/simulator trong Docker đăng nhập bằng tài khoản riêng
   automation:

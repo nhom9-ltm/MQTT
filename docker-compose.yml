@@ -7,9 +7,30 @@ services:
       - "1883:1883"   # MQTT/TCP  (thiết bị, automation, logger)
       - "9001:9001"   # WebSocket (dashboard trên trình duyệt)
     volumes:
-      - ./BE/broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./BE/broker/acl.conf:/mosquitto/config/acl.conf:ro
+      - ./infra/broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/broker/acl.conf:/mosquitto/config/acl.conf:ro
       - mosquitto-data:/mosquitto/data
+    restart: unless-stopped
+
+  # Database tài khoản và trang quản trị. Chạy lần đầu: docker compose up -d database
+  # Sau đó tự bật cùng Docker Desktop. backend/database/schema.sql chỉ được nạp khi volume còn trống.
+  database:
+    image: postgres:16-alpine
+    container_name: mqtt-database
+    environment:
+      POSTGRES_DB: smarthome
+      POSTGRES_USER: smarthome
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smarthome_dev}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - database-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smarthome -d smarthome"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
 
   # Web server tĩnh cho dashboard -> http://localhost:8080
@@ -19,7 +40,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./FE:/usr/share/nginx/html:ro
+      - ./frontend:/usr/share/nginx/html:ro
     depends_on:
       - mosquitto
 
@@ -31,8 +52,8 @@ services:
     profiles: ["full"]
     working_dir: /app
     volumes:
-      - ./BE:/app/BE            # ghi được: automation lưu trạng thái bật/tắt luật vào BE/config/rules.json
-    command: sh -c "pip install -q -r BE/requirements.txt && python -u BE/run_automation.py --host mosquitto"
+      - ./backend:/app/backend            # ghi được: automation lưu trạng thái bật/tắt luật vào backend/config/rules.json
+    command: sh -c "pip install -q -r backend/requirements.txt && python -u backend/run_automation.py --host mosquitto"
     depends_on:
       - mosquitto
     restart: unless-stopped
@@ -43,11 +64,12 @@ services:
     profiles: ["full"]
     working_dir: /app
     volumes:
-      - ./BE:/app/BE:ro
-    command: sh -c "pip install -q -r BE/requirements.txt && python -u BE/run_simulator.py --host mosquitto --quiet"
+      - ./backend:/app/backend:ro
+    command: sh -c "pip install -q -r backend/requirements.txt && python -u backend/run_simulator.py --host mosquitto --quiet"
     depends_on:
       - mosquitto
     restart: unless-stopped
 
 volumes:
   mosquitto-data:
+  database-data:
