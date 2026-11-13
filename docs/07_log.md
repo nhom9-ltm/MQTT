@@ -1,11 +1,11 @@
 # Prompt 07 — Trang Message log
 
-> **Điều kiện tiên quyết:** prompt 01 đã hoàn thành. Trước khi làm, kiểm tra `FE/js/nav.js` tồn tại, `FE/index.html` có `<aside id="sidebar">` và `<section class="page" id="page-log">`. **Nếu thiếu: dừng lại và báo cáo, không tự làm thay prompt 01.**
+> **Điều kiện tiên quyết:** prompt 01 đã hoàn thành. Trước khi làm, kiểm tra `frontend/js/nav.js` tồn tại, `frontend/index.html` có `<aside id="sidebar">` và `<section class="page" id="page-log">`. **Nếu thiếu: dừng lại và báo cáo, không tự làm thay prompt 01.**
 
 ## 0. Quy tắc bắt buộc (đọc kỹ trước khi làm)
 
 1. **Chỉ làm đúng những gì prompt này yêu cầu.** Không thêm tính năng, không "tiện tay" sửa chỗ khác, không tối ưu hay refactor ngoài phạm vi.
-2. **Chỉ được sửa/tạo các file nêu ở mục 2 "Phạm vi file".** Mọi file khác — đặc biệt `BE/**`, `FE/js/app.js`, `FE/mock/demo.js`, `FE/css/style.css`, `docker-compose*.yml`, `.github/**`, các file `.md` — là **CẤM SỬA**, kể cả khi bạn thấy lỗi hoặc có cách làm hay hơn.
+2. **Chỉ được sửa/tạo các file nêu ở mục 2 "Phạm vi file".** Mọi file khác — đặc biệt `backend/**`, `frontend/js/app.js`, `frontend/mock/demo.js`, `frontend/css/style.css`, `docker-compose*.yml`, `.github/**`, các file `.md` — là **CẤM SỬA**, kể cả khi bạn thấy lỗi hoặc có cách làm hay hơn.
 3. **Không sửa logic hiện có.** Giữ nguyên id phần tử, tên hàm, topic MQTT, định dạng payload và hành vi lọc/tạm dừng/giới hạn 250 dòng của log. Có thể di chuyển phần tử nhưng **không đổi/xóa id và class** (`.log`, `tr.status`, `tr.set`, `tr.event`, `tr.lwt`, `tr.sys`, `td.topic`, `td.payload`, `.yes`).
 4. **Màu sắc giữ nguyên như đang áp dụng.** Màu chữ topic theo loại (`status`, `set`, `event`, `lwt`, `sys`) trong `style.css` giữ nguyên; chỉ dùng biến CSS sẵn có. Không thêm giá trị màu mới, không đổi giá trị biến, không đổi font. Chế độ sáng/tối phải chạy như cũ. Wireframe chỉ là bố cục thuần xám: **không lấy màu từ wireframe**.
 5. **Khi có thắc mắc, mâu thuẫn hoặc phải làm việc ngoài phạm vi: KHÔNG tự đoán, KHÔNG tự quyết theo ý mình.** Nếu điều đó chặn cả công việc thì dừng lại và hỏi người dùng. Nếu chỉ chặn một phần thì bỏ qua phần đó, làm phần còn lại và ghi câu hỏi vào mục "Cần xác nhận" của báo cáo.
@@ -16,14 +16,14 @@
 
 Trang **Message log** (`#/log`) là bảng theo dõi mọi message MQTT dashboard nhận được, dùng khi thuyết trình để cho khán giả thấy lệnh `…/set` rồi đến `…/state`, cột Retain, QoS, LWT. `app.js` (hàm `logMessage`) thêm mỗi message thành một `<tr>` vào **đầu** `#logBody` (tối đa 250 dòng), gồm 5 cột: Giờ, Topic, QoS, Retain, Payload. Công cụ trên đầu panel: `#logFilter` (lọc topic), `#logHideState` (ẩn state & $SYS), `#logPause` (tạm dừng), `#logClear` (xóa). Khung bảng hiện bị giới hạn chiều cao 300px (`.log-wrap`) và cuộn bên trong.
 
-Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (mục 4, hàng "Message log": "bảng topic/QoS/Retain, ô lọc, ẩn state, tạm dừng — dành cho phần thuyết trình MQTT").
+Tham chiếu bắt buộc: **wireframe** `frontend/layout/sidebar_wireframe.html` (mục 4, hàng "Message log": "bảng topic/QoS/Retain, ô lọc, ẩn state, tạm dừng — dành cho phần thuyết trình MQTT").
 
 ## 2. Phạm vi file
 
 | Việc | File |
 |---|---|
-| Được **sửa** | `FE/layout/layout.css`, `FE/index.html` (chỉ phần bên trong `#page-log`) |
-| Chỉ **đọc** | `FE/js/app.js`, `FE/js/nav.js`, `FE/css/style.css`, `FE/layout/sidebar.css`, wireframe |
+| Được **sửa** | `frontend/layout/layout.css`, `frontend/index.html` (chỉ phần bên trong `#page-log`) |
+| Chỉ **đọc** | `frontend/js/app.js`, `frontend/js/nav.js`, `frontend/css/style.css`, `frontend/layout/sidebar.css`, wireframe |
 | **CẤM** | mọi file còn lại |
 
 ## 3. Yêu cầu
@@ -55,7 +55,7 @@ Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (m�
 
 ## 5. Cách kiểm tra
 
-1. `docker compose up -d`, `python BE/run_simulator.py`, `python BE/run_automation.py`; mở http://localhost:8080/#/log (hoặc `?demo=1`).
+1. `docker compose up -d`, `python backend/run_simulator.py`, `python backend/run_automation.py`; mở http://localhost:8080/#/log (hoặc `?demo=1`).
 2. Thao tác ở trang Thiết bị và Kịch bản để sinh message, rồi quay lại log đối chiếu.
 3. Kiểm tra ở 1280px, 900px, 420px và hai chế độ màu.
 

@@ -5,28 +5,28 @@
 ## 0. Quy tắc bắt buộc (đọc kỹ trước khi làm)
 
 1. **Chỉ làm đúng những gì prompt này yêu cầu.** Không thêm tính năng, không "tiện tay" sửa chỗ khác, không tối ưu hay refactor ngoài phạm vi.
-2. **Chỉ được sửa/tạo các file nêu ở mục 2 "Phạm vi file".** Mọi file khác — đặc biệt `BE/**`, `FE/js/app.js`, `FE/mock/demo.js`, `FE/css/style.css`, `docker-compose*.yml`, `.github/**`, các file `.md` — là **CẤM SỬA**, kể cả khi bạn thấy lỗi hoặc có cách làm hay hơn.
+2. **Chỉ được sửa/tạo các file nêu ở mục 2 "Phạm vi file".** Mọi file khác — đặc biệt `backend/**`, `frontend/js/app.js`, `frontend/mock/demo.js`, `frontend/css/style.css`, `docker-compose*.yml`, `.github/**`, các file `.md` — là **CẤM SỬA**, kể cả khi bạn thấy lỗi hoặc có cách làm hay hơn.
 3. **Không sửa logic hiện có.** Giữ nguyên id phần tử, tên hàm, topic MQTT, định dạng payload và hành vi của dashboard. `app.js` tìm phần tử theo id, nên được phép **di chuyển** phần tử sang chỗ khác trong HTML nhưng **không đổi/xóa id và class**.
-4. **Màu sắc giữ nguyên như đang áp dụng.** Chỉ dùng các biến CSS đã có trong `FE/css/style.css` (`--bg`, `--bg-2`, `--panel`, `--line`, `--text`, `--muted`, `--accent`, `--ok`, `--warn`, `--bad`, `--c-*`…). Không thêm giá trị màu mới (hex/rgb/hsl), không đổi giá trị biến, không đổi font. Chế độ sáng/tối (`prefers-color-scheme`) phải chạy như cũ. File wireframe chỉ là bố cục thuần xám: **không lấy màu từ wireframe**.
+4. **Màu sắc giữ nguyên như đang áp dụng.** Chỉ dùng các biến CSS đã có trong `frontend/css/style.css` (`--bg`, `--bg-2`, `--panel`, `--line`, `--text`, `--muted`, `--accent`, `--ok`, `--warn`, `--bad`, `--c-*`…). Không thêm giá trị màu mới (hex/rgb/hsl), không đổi giá trị biến, không đổi font. Chế độ sáng/tối (`prefers-color-scheme`) phải chạy như cũ. File wireframe chỉ là bố cục thuần xám: **không lấy màu từ wireframe**.
 5. **Khi có thắc mắc, mâu thuẫn hoặc phải làm việc ngoài phạm vi: KHÔNG tự đoán, KHÔNG tự quyết theo ý mình.** Nếu điều đó chặn cả công việc thì dừng lại và hỏi người dùng. Nếu chỉ chặn một phần thì bỏ qua phần đó, làm phần còn lại và ghi câu hỏi vào mục "Cần xác nhận" của báo cáo.
 6. Không cài thư viện, không thêm CDN/script ngoài, không đổi tên hay di chuyển file, không `git commit`/`git push`.
 7. Nếu phải bật/tắt dịch vụ để kiểm tra, trả về đúng trạng thái ban đầu khi xong.
 
 ## 1. Bối cảnh
 
-Dự án nhà thông minh dùng MQTT. Giao diện nằm trong `FE/` (HTML/CSS/JS thuần, không build). Hiện `FE/index.html` là **một trang cuộn dài** gồm: chế độ + kịch bản, KPI, thiết bị theo phòng, 2 biểu đồ, luật tự động, thông báo, message log. Cần chuyển thành **ứng dụng một trang có sidebar trái** để mỗi mục là một "màn hình", **không tải lại trang** (để giữ kết nối MQTT).
+Dự án nhà thông minh dùng MQTT. Giao diện nằm trong `frontend/` (HTML/CSS/JS thuần, không build). Hiện `frontend/index.html` là **một trang cuộn dài** gồm: chế độ + kịch bản, KPI, thiết bị theo phòng, 2 biểu đồ, luật tự động, thông báo, message log. Cần chuyển thành **ứng dụng một trang có sidebar trái** để mỗi mục là một "màn hình", **không tải lại trang** (để giữ kết nối MQTT).
 
 Tài liệu tham chiếu bắt buộc đọc:
-- **Wireframe:** `FE/layout/sidebar_wireframe.html` — mở bằng trình duyệt; dùng mục 1 (desktop), 2 (thu gọn), 3 (mobile), 4 (nội dung từng mục), 5 (hành vi).
-- Code hiện tại: `FE/index.html`, `FE/css/style.css`, `FE/layout/layout.css`, `FE/js/app.js` (chỉ đọc).
+- **Wireframe:** `frontend/layout/sidebar_wireframe.html` — mở bằng trình duyệt; dùng mục 1 (desktop), 2 (thu gọn), 3 (mobile), 4 (nội dung từng mục), 5 (hành vi).
+- Code hiện tại: `frontend/index.html`, `frontend/css/style.css`, `frontend/layout/layout.css`, `frontend/js/app.js` (chỉ đọc).
 
 ## 2. Phạm vi file
 
 | Việc | File |
 |---|---|
-| Được **sửa** | `FE/index.html`, `FE/layout/layout.css` |
-| Được **tạo** | `FE/layout/sidebar.css`, `FE/js/nav.js` |
-| Chỉ **đọc** | `FE/layout/sidebar_wireframe.html`, `FE/css/style.css`, `FE/js/app.js`, `FE/mock/demo.js`, `FE/history.html` |
+| Được **sửa** | `frontend/index.html`, `frontend/layout/layout.css` |
+| Được **tạo** | `frontend/layout/sidebar.css`, `frontend/js/nav.js` |
+| Chỉ **đọc** | `frontend/layout/sidebar_wireframe.html`, `frontend/css/style.css`, `frontend/js/app.js`, `frontend/mock/demo.js`, `frontend/history.html` |
 | **CẤM** | mọi file còn lại |
 
 ## 3. Yêu cầu
@@ -46,7 +46,7 @@ Tài liệu tham chiếu bắt buộc đọc:
 
 Ở prompt này chỉ **di chuyển** các khối vào đúng trang và giữ nguyên giao diện bên trong; việc tinh chỉnh từng trang thuộc prompt 02–07.
 
-**A2. Sidebar** — do `FE/js/nav.js` render vào `<aside id="sidebar" data-active="…">` (để `history.html` dùng lại ở prompt 06). Gồm:
+**A2. Sidebar** — do `frontend/js/nav.js` render vào `<aside id="sidebar" data-active="…">` (để `history.html` dùng lại ở prompt 06). Gồm:
 - Logo + tên "Nhà thông minh" + dòng phụ "MQTT · Mosquitto · ESP32" (lấy từ `.brand` hiện có; `.brand` chuyển vào sidebar).
 - Mục: **Trang chủ** (`#/home`) · **Thiết bị** (`#/devices`) · **Kịch bản** (`#/scenes`) · **Luật tự động** (`#/rules`) · **Thông báo** (`#/alerts`) · nhóm nhãn **Dữ liệu** → **Lịch sử** (liên kết `history.html`) · nhóm nhãn **Hệ thống** → **Message log** (`#/log`).
 - Mỗi mục có icon SVG inline (stroke `currentColor`, cùng kiểu icon logo hiện có) và chỗ cho huy hiệu: `<span class="badge" data-badge="devices|rules|alerts" hidden>`. Prompt này **chỉ tạo chỗ**, không đổ dữ liệu (prompt 02, 04, 05 làm).
@@ -97,8 +97,8 @@ Tài liệu tham chiếu bắt buộc đọc:
 
 ## 5. Cách kiểm tra
 
-1. Chụp ảnh `FE/index.html` hiện tại (trước khi sửa) ở chế độ sáng và tối để đối chiếu màu.
-2. Chạy hệ thống: `docker compose up -d` (dashboard ở http://localhost:8080), rồi `python BE/run_simulator.py` và `python BE/run_automation.py`. Hoặc dùng `http://localhost:8080/?demo=1` nếu không có broker.
+1. Chụp ảnh `frontend/index.html` hiện tại (trước khi sửa) ở chế độ sáng và tối để đối chiếu màu.
+2. Chạy hệ thống: `docker compose up -d` (dashboard ở http://localhost:8080), rồi `python backend/run_simulator.py` và `python backend/run_automation.py`. Hoặc dùng `http://localhost:8080/?demo=1` nếu không có broker.
 3. Duyệt từng mục sidebar, thử thu gọn, thử thu nhỏ cửa sổ xuống < 768px.
 4. Mở Console, xác nhận không có lỗi.
 

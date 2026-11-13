@@ -1,13 +1,13 @@
 # Prompt 05 — Trang Thông báo (+ huy hiệu chưa đọc)
 
-> **Điều kiện tiên quyết:** prompt 01 đã hoàn thành. Trước khi làm, kiểm tra `FE/js/nav.js` tồn tại, `FE/index.html` có `<aside id="sidebar">`, nút chuông trên thanh trên và `<section class="page" id="page-alerts">`. **Nếu thiếu: dừng lại và báo cáo, không tự làm thay prompt 01.**
+> **Điều kiện tiên quyết:** prompt 01 đã hoàn thành. Trước khi làm, kiểm tra `frontend/js/nav.js` tồn tại, `frontend/index.html` có `<aside id="sidebar">`, nút chuông trên thanh trên và `<section class="page" id="page-alerts">`. **Nếu thiếu: dừng lại và báo cáo, không tự làm thay prompt 01.**
 
 ## 0. Quy tắc bắt buộc (đọc kỹ trước khi làm)
 
 1. **Chỉ làm đúng những gì prompt này yêu cầu.** Không thêm tính năng, không "tiện tay" sửa chỗ khác, không tối ưu hay refactor ngoài phạm vi.
-2. **Chỉ được sửa/tạo các file nêu ở mục 2 "Phạm vi file".** Mọi file khác — đặc biệt `BE/**`, `FE/js/app.js`, `FE/mock/demo.js`, `FE/css/style.css`, `docker-compose*.yml`, `.github/**`, các file `.md` — là **CẤM SỬA**, kể cả khi bạn thấy lỗi hoặc có cách làm hay hơn.
+2. **Chỉ được sửa/tạo các file nêu ở mục 2 "Phạm vi file".** Mọi file khác — đặc biệt `backend/**`, `frontend/js/app.js`, `frontend/mock/demo.js`, `frontend/css/style.css`, `docker-compose*.yml`, `.github/**`, các file `.md` — là **CẤM SỬA**, kể cả khi bạn thấy lỗi hoặc có cách làm hay hơn.
 3. **Không sửa logic hiện có.** Giữ nguyên id phần tử, tên hàm, topic MQTT, định dạng payload và hành vi của dashboard (kể cả thông báo nổi `toast`). Có thể di chuyển phần tử nhưng **không đổi/xóa id và class**.
-4. **Màu sắc giữ nguyên như đang áp dụng.** Chỉ dùng các biến CSS đã có trong `FE/css/style.css` (đặc biệt `--bad`, `--warn`, `--ok`, `--hum`, `--accent` đang dùng cho viền các mức độ cảnh báo). Không thêm giá trị màu mới, không đổi giá trị biến, không đổi font. Chế độ sáng/tối phải chạy như cũ. Wireframe chỉ là bố cục thuần xám: **không lấy màu từ wireframe**.
+4. **Màu sắc giữ nguyên như đang áp dụng.** Chỉ dùng các biến CSS đã có trong `frontend/css/style.css` (đặc biệt `--bad`, `--warn`, `--ok`, `--hum`, `--accent` đang dùng cho viền các mức độ cảnh báo). Không thêm giá trị màu mới, không đổi giá trị biến, không đổi font. Chế độ sáng/tối phải chạy như cũ. Wireframe chỉ là bố cục thuần xám: **không lấy màu từ wireframe**.
 5. **Khi có thắc mắc, mâu thuẫn hoặc phải làm việc ngoài phạm vi: KHÔNG tự đoán, KHÔNG tự quyết theo ý mình.** Nếu điều đó chặn cả công việc thì dừng lại và hỏi người dùng. Nếu chỉ chặn một phần thì bỏ qua phần đó, làm phần còn lại và ghi câu hỏi vào mục "Cần xác nhận" của báo cáo.
 6. Không cài thư viện, không thêm CDN/script ngoài, không đổi tên hay di chuyển file, không `git commit`/`git push`.
 7. Nếu phải bật/tắt dịch vụ để kiểm tra, trả về đúng trạng thái ban đầu khi xong.
@@ -16,14 +16,14 @@
 
 `app.js` ghi thông báo vào `#alerts` bằng hàm `addAlert`: mỗi thông báo là `<li class="<level>"><time>HH:MM:SS</time>nội dung</li>` thêm vào **đầu** danh sách (tối đa 80 dòng), với lớp mức độ là một trong: `bad` (nghiêm trọng, ứng với `critical` của automation), `warn`, `ok`, `info`, `rule` (xem `.alerts li.*` trong `style.css`; dòng trống dùng `.muted`). Cùng lúc `toast()` hiện thông báo nổi 6 giây (giữ nguyên). Nút `#alertClear` xóa danh sách. Khi chưa có thông báo, `#alerts` chứa một `<li class="muted">Chưa có thông báo.</li>`.
 
-Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (mục 1 — huy hiệu đỏ ở mục "Thông báo" và chuông trên thanh trên; mục 4, hàng "Thông báo": "danh sách cảnh báo; huy hiệu đỏ khi có critical chưa đọc").
+Tham chiếu bắt buộc: **wireframe** `frontend/layout/sidebar_wireframe.html` (mục 1 — huy hiệu đỏ ở mục "Thông báo" và chuông trên thanh trên; mục 4, hàng "Thông báo": "danh sách cảnh báo; huy hiệu đỏ khi có critical chưa đọc").
 
 ## 2. Phạm vi file
 
 | Việc | File |
 |---|---|
-| Được **sửa** | `FE/js/nav.js` (chỉ phần huy hiệu/đếm chưa đọc), `FE/layout/sidebar.css`, `FE/layout/layout.css`, `FE/index.html` (chỉ phần bên trong `#page-alerts` và nút chuông) |
-| Chỉ **đọc** | `FE/js/app.js`, `FE/css/style.css`, wireframe |
+| Được **sửa** | `frontend/js/nav.js` (chỉ phần huy hiệu/đếm chưa đọc), `frontend/layout/sidebar.css`, `frontend/layout/layout.css`, `frontend/index.html` (chỉ phần bên trong `#page-alerts` và nút chuông) |
+| Chỉ **đọc** | `frontend/js/app.js`, `frontend/css/style.css`, wireframe |
 | **CẤM** | mọi file còn lại |
 
 ## 3. Yêu cầu
@@ -46,7 +46,7 @@ Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (m�
 ### Điểm CHƯA được chốt — KHÔNG tự làm, ghi vào "Cần xác nhận"
 - Lưu thông báo qua F5 (hiện chỉ có trong bộ nhớ trang).
 - Lọc theo mức độ, nút "Đánh dấu đã đọc" riêng, âm thanh/rung khi có cảnh báo.
-- Tích hợp Telegram/Email trên giao diện (notifier chạy phía `BE/`, không thuộc phạm vi này).
+- Tích hợp Telegram/Email trên giao diện (notifier chạy phía `backend/`, không thuộc phạm vi này).
 
 ## 4. Tiêu chí nghiệm thu
 
@@ -60,7 +60,7 @@ Tham chiếu bắt buộc: **wireframe** `FE/layout/sidebar_wireframe.html` (m�
 
 ## 5. Cách kiểm tra
 
-1. `docker compose up -d`, `python BE/run_simulator.py`, `python BE/run_automation.py`; mở http://localhost:8080/#/home (hoặc `?demo=1`).
+1. `docker compose up -d`, `python backend/run_simulator.py`, `python backend/run_automation.py`; mở http://localhost:8080/#/home (hoặc `?demo=1`).
 2. Ở Trang chủ, chạy một kịch bản và kích hoạt gas để tạo thông báo; theo dõi huy hiệu; vào trang Thông báo; thử Xóa.
 3. Kiểm tra ở 3 độ rộng và 2 chế độ màu.
 

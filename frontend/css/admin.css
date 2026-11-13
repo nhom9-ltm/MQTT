@@ -1,0 +1,98 @@
+/* Trang quản trị: tổng quan, thông báo, bảng thiết bị/luật, hộp thoại form. Chỉ dùng biến màu có sẵn trong style.css. */
+
+/* ---------- tổng quan ---------- */
+.admin-page .admin-kpis { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.kpi-link { color: inherit; text-decoration: none; transition: border-color .15s; }
+.kpi-link:hover { border-color: var(--accent); }
+
+/* ---------- thông báo ---------- */
+.admin-alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.admin-alerts li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px;
+  background: var(--bg-2); border-left: 3px solid var(--line); font-size: 13px; }
+.admin-alerts li.lvl-critical { border-left-color: var(--bad); }
+.admin-alerts li.lvl-warn { border-left-color: var(--warn); }
+.admin-alerts li.lvl-info { border-left-color: var(--ok); }
+.admin-alerts li.muted { color: var(--muted); }
+.admin-alerts time { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.admin-alerts .alert-text { flex: 1; min-width: 200px; }
+
+/* ---------- thiết bị ---------- */
+.room-filter { margin-bottom: 10px; flex-wrap: wrap; }
+.room-filter b { font-family: var(--mono); font-weight: 500; color: var(--muted); margin-left: 4px; }
+
+.panel-note { margin: 4px 0 0; font-size: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.data-table td.actions { text-align: right; }
+.data-table td.actions .btn + .btn { margin-left: 6px; }
+.data-table td.wrap { white-space: normal; min-width: 220px; }
+.data-table small { display: block; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.data-table code { font-family: var(--mono); font-size: 12px; }
+.tag.idle { color: var(--muted); }
+.tag.warn { color: var(--warn); }
+.data-table tr.disabled td:not(:first-child):not(.actions) { color: var(--muted); }
+
+/* ---------- hộp thoại ---------- */
+.admin-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--panel); color: var(--text); }
+.admin-dialog.wide { width: min(760px, calc(100vw - 32px)); }
+.admin-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+.admin-dialog form { padding: 20px; display: grid; gap: 14px; }
+.admin-dialog h3 { margin: 0; font-size: 16px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.form-grid .full { grid-column: 1 / -1; }
+.field select, .field textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg-2); color: var(--text); font: inherit; font-size: 14px; box-sizing: border-box; }
+.field textarea { font-family: var(--mono); font-size: 12px; resize: vertical; }
+.field select:focus, .field textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.field input:disabled { opacity: .6; }
+.trigger-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 0; display: grid; gap: 10px; }
+.trigger-box legend { font-size: 13px; font-weight: 500; padding: 0 4px; }
+.trigger-box .form-grid[hidden] { display: none; }
+.check-field { display: flex; align-items: center; gap: 8px; font-size: 13px; align-self: end; padding-bottom: 10px; }
+.form-hint { margin: 0; font-size: 12px; color: var(--muted); }
+.form-hint ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.form-hint code { font-family: var(--mono); font-size: 11px; word-break: break-all; }
+.form-hint summary { cursor: pointer; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---------- thông báo nổi ---------- */
+/* layout.css đặt sẵn top: 76px; phải bỏ top, nếu không khung bị kéo dãn từ trên xuống dưới và che các nút ở mép phải.
+   Khung trong suốt cũng không được nhận click, chỉ từng thông báo mới nhận. */
+.admin-page .toasts { position: fixed; top: auto; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 50;
+  pointer-events: none; }
+.admin-page .toast { pointer-events: auto; }
+.admin-page .toast.ok { background: var(--ok); color: #062420; }
+
+@media (max-width: 640px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- quản lý người dùng ---------- */
+.list-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.list-toolbar input, .list-toolbar select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg-2); color: var(--text); font: inherit; font-size: 13px; }
+.list-toolbar input { flex: 1 1 260px; min-width: 0; }
+.list-toolbar input:focus, .list-toolbar select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.data-table td .tag + .tag, .data-table td .tag { vertical-align: middle; }
+.data-table button:disabled { opacity: .35; }
+.field select:disabled { opacity: .6; }
+.filter-field { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.data-table th.actions { text-align: right; }
+.icon-btn { display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line);
+  border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; }
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+.icon-btn.danger { color: var(--bad); }
+.icon-btn.danger:hover { border-color: var(--bad); color: var(--bad); }
+.icon-btn:disabled, .icon-btn:disabled:hover { opacity: .3; cursor: not-allowed; border-color: var(--line); color: var(--muted); }
+.data-table td.actions .icon-btn + .icon-btn { margin-left: 6px; }
+.icon-btn.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.icon-btn.warn:hover { color: var(--warn); border-color: var(--warn); }
+.text-link { color: var(--accent); font-size: 12px; }
+.perm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.perm-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; background: var(--bg-2); font-size: 13px; }
+.perm-list svg { color: var(--ok); flex: none; }
+.confirm-dialog { width: min(440px, calc(100vw - 32px)); }
+.confirm-dialog p { margin: 0; font-size: 14px; line-height: 1.5; }
+.confirm-dialog[data-kind="danger"] h3 { color: var(--bad); }
+.confirm-dialog[data-kind="warn"] h3 { color: var(--warn); }
+.btn.danger-solid { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn.warn-solid { background: var(--warn); border-color: var(--warn); color: #1a1300; }
