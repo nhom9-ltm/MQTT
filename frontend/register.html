@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng ký — Nhà thông minh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=18">
+  <link rel="stylesheet" href="css/auth.css?v=18">
+  <script src="js/session.js?v=18"></script>
+</head>
+<body class="login-page">
+  <main class="login-card register-card">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+      </div>
+      <div>
+        <h1>Tạo tài khoản</h1>
+        <p class="sub">Nhà thông minh · tài khoản người dùng</p>
+      </div>
+    </div>
+
+    <ol class="steps" aria-label="Các bước đăng ký">
+      <li data-step="1" class="on">Số điện thoại</li>
+      <li data-step="2">Mã OTP</li>
+      <li data-step="3">Thông tin tài khoản</li>
+    </ol>
+
+    <!-- Thông báo thành công / thất bại cho mọi thao tác -->
+    <p class="form-msg" id="regMsg" role="status" aria-live="polite" hidden></p>
+
+    <!-- Tin nhắn SMS giả lập (dự án demo không có cổng SMS thật) -->
+    <div class="mock-sms" id="mockSms" hidden>
+      <span class="mock-sms-head">💬 SMS giả lập · gửi tới <b id="smsPhone"></b></span>
+      <span>Mã xác thực Nhà thông minh của bạn là <b class="sms-code" id="smsCode"></b>. Mã hết hạn sau 5 phút.</span>
+    </div>
+
+    <!-- BƯỚC 1: SĐT + họ tên -->
+    <form class="login-form" id="step1" novalidate>
+      <div class="field">
+        <label for="regPhone">Số điện thoại</label>
+        <input id="regPhone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="vd: 0901234567" autofocus>
+      </div>
+      <div class="field">
+        <label for="regName">Họ và tên</label>
+        <input id="regName" autocomplete="name" placeholder="vd: Nguyễn Văn A">
+      </div>
+      <button type="submit" class="btn primary" id="btnSendOtp">Gửi mã OTP</button>
+    </form>
+
+    <!-- BƯỚC 2: nhập OTP 6 số -->
+    <form class="login-form" id="step2" novalidate hidden>
+      <p class="muted step-note">Nhập mã 6 số đã gửi tới <b id="otpPhone"></b>.</p>
+      <div class="otp-boxes" id="otpBoxes" aria-label="Mã OTP 6 số">
+        <input inputmode="numeric" maxlength="1" aria-label="Số thứ 1" autocomplete="one-time-code">
+        <input inputmode="numeric" maxlength="1" aria-label="Số thứ 2">
+        <input inputmode="numeric" maxlength="1" aria-label="Số thứ 3">
+        <input inputmode="numeric" maxlength="1" aria-label="Số thứ 4">
+        <input inputmode="numeric" maxlength="1" aria-label="Số thứ 5">
+        <input inputmode="numeric" maxlength="1" aria-label="Số thứ 6">
+      </div>
+      <button type="submit" class="btn primary" id="btnVerify">Xác nhận mã</button>
+      <div class="step-links">
+        <button type="button" class="btn link-btn" id="btnResend" disabled>Gửi lại mã</button>
+        <button type="button" class="btn link-btn" id="btnChangePhone">Đổi số điện thoại</button>
+      </div>
+    </form>
+
+    <!-- BƯỚC 3: email, địa chỉ, mật khẩu -->
+    <form class="login-form" id="step3" novalidate hidden>
+      <p class="muted step-note">Đã xác thực <b id="verifiedPhone"></b> · <b id="verifiedName"></b></p>
+      <div class="field">
+        <label for="regEmail">Email (dùng để đăng nhập)</label>
+        <input id="regEmail" type="email" autocomplete="email" spellcheck="false" placeholder="ten@gmail.com">
+      </div>
+      <div class="field">
+        <label for="regAddress">Địa chỉ nhà</label>
+        <input id="regAddress" autocomplete="street-address" placeholder="vd: 12 Lê Lợi, Quận 1, TP. Hồ Chí Minh">
+      </div>
+      <div class="field">
+        <label for="regPassword">Mật khẩu (ít nhất 6 ký tự)</label>
+        <div class="password-wrap">
+          <input id="regPassword" type="password" autocomplete="new-password">
+          <button type="button" class="password-toggle" data-toggle="regPassword" aria-label="Hiện mật khẩu" aria-pressed="false">
+            <svg class="eye-open" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" hidden viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-6.5 0-10-7-10-7a18 18 0 0 1 4.1-5.1M9.9 5.2A9.6 9.6 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2M2 2l20 20"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="regPassword2">Nhập lại mật khẩu</label>
+        <input id="regPassword2" type="password" autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn primary" id="btnRegister">Đăng ký</button>
+    </form>
+
+    <p class="muted login-foot">Đã có tài khoản? <a href="login.html">Đăng nhập</a></p>
+  </main>
+
+  <script src="js/register.js?v=18"></script>
+</body>
+</html>

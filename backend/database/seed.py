@@ -39,10 +39,14 @@ ROLES = [
 ]
 
 USERS = [
-    # (email, mật khẩu, họ tên, vai trò)
-    ("admmqtt@gmail.com", "Admin@1", "Quản trị viên", "admin"),
-    ("user1@gmail.com",   "User@1",  "Người dùng 1",  "user"),
+    # (email, mật khẩu, họ tên, vai trò, SĐT, có gắn nhà mẫu?)
+    ("admmqtt@gmail.com", "Admin@1", "Quản trị viên", "admin", None,         False),
+    ("user1@gmail.com",   "User@1",  "Người dùng 1",  "user",  "0900000001", True),
 ]
+
+# Địa chỉ nhà mẫu: thiết bị, luật và user1 thuộc nhà này. Nhà đầu tiên luôn có id = 1
+# (backend/config/rules.json ghi "house_id": 1 cho các luật có sẵn).
+DEFAULT_HOUSE = "Số 1 Đường Demo, Quận 1, TP. Hồ Chí Minh"
 
 
 # ==========================================================
@@ -132,16 +136,35 @@ def run() -> dict:
     with connection() as con:
         # Nâng cấp database đã tạo từ schema cũ (trước khi có xóa mềm tài khoản)
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
+        con.execute("ALTER TABLE devices ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE")
+        con.execute("ALTER TABLE devices ADD COLUMN IF NOT EXISTS created_by BIGINT REFERENCES users(id) ON DELETE SET NULL")
+        con.execute("ALTER TABLE devices ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()")
+        con.execute("""CREATE TABLE IF NOT EXISTS houses (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, address VARCHAR(200) NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now())""")
+        con.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_houses_address ON houses (lower(address))")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(15)")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS house_id INTEGER REFERENCES houses(id) ON DELETE SET NULL")
+        con.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_phone ON users(phone) WHERE deleted_at IS NULL")
+        con.execute("ALTER TABLE devices ADD COLUMN IF NOT EXISTS house_id INTEGER REFERENCES houses(id) ON DELETE SET NULL")
+        con.execute("""CREATE TABLE IF NOT EXISTS user_devices (
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            device_id INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+            connected_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_id, device_id))""")
+        if con.execute("SELECT count(*) AS n FROM houses").fetchone()["n"] == 0:
+            con.execute("INSERT INTO houses (address) VALUES (%s)", (DEFAULT_HOUSE,))
+        house_id = con.execute("SELECT min(id) AS id FROM houses").fetchone()["id"]
         con.cursor().executemany(
             "INSERT INTO roles (id, code, name) VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING", ROLES)
         if con.execute("SELECT count(*) AS n FROM users").fetchone()["n"] == 0:      # lần đầu
             con.cursor().executemany(
-                "INSERT INTO users (email, password_hash, full_name, role_id) VALUES (%s, %s, %s, %s)",
-                [(email, sha256_hex(pw), name, role_id[role]) for email, pw, name, role in USERS])
+                "INSERT INTO users (email, password_hash, full_name, role_id, phone, house_id) VALUES (%s, %s, %s, %s, %s, %s)",
+                [(email, sha256_hex(pw), name, role_id[role], phone, house_id if in_house else None)
+                 for email, pw, name, role, phone, in_house in USERS])
         no_admin = con.execute("SELECT count(*) AS n FROM users u JOIN roles r ON r.id = u.role_id "
                                "WHERE r.code = 'admin' AND u.is_active AND u.deleted_at IS NULL").fetchone()["n"] == 0
         if no_admin:                # lỡ khóa/xóa hết quản trị viên → khôi phục tài khoản admin trong seed
-            for email, pw, name, role in USERS:
+            for email, pw, name, role, *_ in USERS:
                 if role == "admin":
                     con.execute(
                         "INSERT INTO users (email, password_hash, full_name, role_id) VALUES (%s, %s, %s, %s) "
@@ -156,9 +179,20 @@ def run() -> dict:
                 "INSERT INTO device_types (code, name) VALUES (%s, %s) ON CONFLICT (code) DO NOTHING",
                 DEVICE_TYPES)
             con.cursor().executemany(
-                "INSERT INTO devices (room_id, code, name, type_code, is_simulated) "
-                "SELECT id, %s, %s, %s, %s FROM rooms WHERE code = %s",
-                [(code, name, typ, sim, room) for room, code, name, typ, sim in DEVICES])
+                "INSERT INTO devices (room_id, code, name, type_code, is_simulated, house_id) "
+                "SELECT id, %s, %s, %s, %s, %s FROM rooms WHERE code = %s",
+                [(code, name, typ, sim, house_id, room) for room, code, name, typ, sim in DEVICES])
+        # Tài khoản mẫu (user1) được kết nối sẵn mọi thiết bị của nhà mẫu, để dashboard có thiết bị ngay khi đăng nhập.
+        # Chỉ làm với tài khoản mẫu CHƯA kết nối thiết bị nào, không đụng tới tài khoản người dùng tự đăng ký.
+        con.execute("""INSERT INTO user_devices (user_id, device_id)
+            SELECT u.id, d.id FROM users u JOIN devices d ON d.house_id = u.house_id
+            WHERE u.email = ANY(%s) AND u.deleted_at IS NULL
+              AND NOT EXISTS (SELECT 1 FROM user_devices x WHERE x.user_id = u.id)
+            ON CONFLICT DO NOTHING""", ([email for email, *_, in_house in USERS if in_house],))
+        # Database cũ (trước khi có địa chỉ nhà): gắn thiết bị và tài khoản user chưa có nhà vào nhà mẫu
+        con.execute("UPDATE devices SET house_id = %s WHERE house_id IS NULL", (house_id,))
+        con.execute("UPDATE users SET house_id = %s WHERE house_id IS NULL AND role_id = %s AND deleted_at IS NULL",
+                    (house_id, role_id["user"]))
 
         con.cursor().executemany(
             "INSERT INTO scenes (code, name, icon) VALUES (%s, %s, %s) "
@@ -176,5 +210,5 @@ def run() -> dict:
 if __name__ == "__main__":
     counts = run()
     print("Đã nạp dữ liệu demo: " + ", ".join(f"{v} {k}" for k, v in counts.items()))
-    for email, pw, _, role in USERS:
+    for email, pw, _, role, *_ in USERS:
         print(f"  {role:<5}  {email:<20}  {pw}")

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Điểm vào: python backend/run_api.py [--port 8000]  (xem backend/controllers/api_controller.py)"""
+"""Điểm vào: python backend/run_api.py [--port 8011]  (xem backend/controllers/api_controller.py)"""
 import argparse
 import os
 import sys
@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def main():
     p = argparse.ArgumentParser(description="API lịch sử nhà thông minh")
     p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--port", type=int, default=8001)
+    p.add_argument("--port", type=int, default=8011)
     args = p.parse_args()
 
     # Nạp dữ liệu demo (tài khoản, thiết bị, luật...) từ backend/database/seed.py trước khi nhận request
@@ -25,6 +25,9 @@ def main():
     try:
         counts = seed.run()
         print("Đã nạp dữ liệu demo: " + ", ".join(f"{v} {k}" for k, v in counts.items()))
+        # Đồng bộ danh sách thiết bị bị khóa lên broker (retained) cho automation và dashboard
+        from backend.services.device_lock_publisher import publish_locks
+        publish_locks()
     except DatabaseUnavailable as e:
         print(f"Bỏ qua seed: {e}")
 

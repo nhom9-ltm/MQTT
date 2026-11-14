@@ -123,7 +123,7 @@ cho tới khi bạn mở lại bằng URL có `?user=…&pass=…`.
 ## 3. Lịch sử + biểu đồ
 
 ```
-run_logger.py ──ghi──▶ backend/data/smarthome.db ──(đọc, chỉ đọc)──▶ backend/run_api.py :8000 ──JSON──▶ frontend/index.html#/history
+run_logger.py ──ghi──▶ backend/data/smarthome.db ──(đọc, chỉ đọc)──▶ backend/run_api.py :8011 ──JSON──▶ frontend/index.html#/history
 ```
 
 ```powershell
@@ -142,7 +142,7 @@ nhiệt độ / độ ẩm theo phòng, điện năng theo ngày và theo thiế
 | `GET /api/commands?hours=24` | Lệnh theo nguồn (`from`) và theo thiết bị |
 | `GET /api/alerts?limit=20` | Thông báo gần nhất của automation |
 
-Tài liệu tương tác của FastAPI: `http://localhost:8000/docs`.
+Tài liệu tương tác của FastAPI: `http://localhost:8011/docs`.
 
 ### Khi chưa có đủ dữ liệu
 DB mới chạy thì biểu đồ còn trống. Sinh 7 ngày dữ liệu mẫu **vào file riêng** (không đụng DB thật):

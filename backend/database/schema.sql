@@ -23,6 +23,15 @@ CREATE TABLE roles (
     name        VARCHAR(50)  NOT NULL
 );
 
+-- Địa chỉ nhà: mỗi tài khoản người dùng, thiết bị và luật tự động thuộc về một địa chỉ (để lọc/quản lý theo nhà).
+-- Lưu ý: topic MQTT vẫn dùng chung "home/<phòng>/<mã>", nên mã thiết bị phải khác nhau giữa các nhà.
+CREATE TABLE houses (
+    id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    address     VARCHAR(200) NOT NULL,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX ux_houses_address ON houses (lower(address));
+
 CREATE TABLE users (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     email           VARCHAR(254) NOT NULL UNIQUE CHECK (email = lower(email) AND email LIKE '%@gmail.com'),
@@ -32,9 +41,12 @@ CREATE TABLE users (
     is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
     last_login_at   TIMESTAMPTZ,
-    deleted_at      TIMESTAMPTZ                     -- xóa mềm: khác NULL = đã xóa (ẩn khỏi hệ thống, không đăng nhập được)
+    deleted_at      TIMESTAMPTZ,                    -- xóa mềm: khác NULL = đã xóa (ẩn khỏi hệ thống, không đăng nhập được)
+    phone           VARCHAR(15),                    -- SĐT đăng ký (đã xác thực OTP)
+    house_id        INTEGER      REFERENCES houses(id) ON DELETE SET NULL
 );
 CREATE INDEX idx_users_role ON users(role_id);
+CREATE UNIQUE INDEX ux_users_phone ON users(phone) WHERE deleted_at IS NULL;
 
 CREATE TABLE sessions (
     token_hash  CHAR(64)    PRIMARY KEY,            -- SHA-256 của token; bản gốc chỉ nằm ở trình duyệt
@@ -67,9 +79,21 @@ CREATE TABLE devices (
     name            VARCHAR(100) NOT NULL,
     type_code       VARCHAR(20)  NOT NULL REFERENCES device_types(code),
     is_simulated    BOOLEAN      NOT NULL,
+    is_active       BOOLEAN      NOT NULL DEFAULT TRUE,   -- FALSE = bị quản trị viên khóa (automation bỏ qua, dashboard chặn điều khiển)
+    created_by      BIGINT       REFERENCES users(id) ON DELETE SET NULL,   -- NULL = do seed tạo
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    house_id        INTEGER      REFERENCES houses(id) ON DELETE SET NULL,
     UNIQUE (room_id, code)
 );
 CREATE INDEX idx_devices_type ON devices(type_code);
+
+-- Thiết bị người dùng đã "kết nối" vào tài khoản bằng cách nhập mã thiết bị (trang người dùng → Thiết bị)
+CREATE TABLE user_devices (
+    user_id       BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    device_id     INTEGER     NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+    connected_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, device_id)
+);
 
 
 -- ==========================================================

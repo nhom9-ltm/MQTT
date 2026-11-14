@@ -41,6 +41,7 @@ class AutomationService:
         custom = [{**s, "custom": True} for s in load_custom_scenes(self.custom_scenes_path) if s["id"] not in taken]
         self.scenes: list[dict] = base + custom
         self.devices: dict[str, dict] = {}      # "phòng/thiết bị" -> {type, online, node, state, ...}
+        self.locked: set[str] = set()           # thiết bị bị quản trị viên khóa (home/_admin/locked/state)
         self.mode: str | None = None
         self.rt = {r["id"]: {"since": None, "fired": False, "last": 0.0, "last_ms": None} for r in self.rules}
         self.lock = threading.RLock()
@@ -52,6 +53,7 @@ class AutomationService:
         self.t_engine = f"{self.p}/_auto/engine/status"
         self.t_mode = f"{self.p}/_auto/mode/state"
         self.t_notify = f"{self.p}/_auto/notify/event"
+        self.t_locked = f"{self.p}/_admin/locked/state"
 
     # =================================================================
     #  Vòng đời
@@ -108,6 +110,10 @@ class AutomationService:
     # =================================================================
     def handle_message(self, room: str, dev: str, kind: str, data):
         with self.lock:
+            if room == "_admin" and dev == "locked" and kind == "state":
+                self.locked = set(data.get("devices", [])) if isinstance(data, dict) else set()
+                print(f"Thiết bị bị khóa: {', '.join(sorted(self.locked)) or 'không có'}")
+                return
             if room == "_auto":
                 self.on_control(dev, kind, data if isinstance(data, dict) else {})
                 return
@@ -157,6 +163,9 @@ class AutomationService:
     #  Đánh giá luật
     # =================================================================
     def is_online(self, key: str) -> bool:
+        """Thiết bị bị khóa coi như không dùng được: luật không kích hoạt theo nó, lệnh không gửi tới nó."""
+        if key in self.locked:
+            return False
         d = self.devices.get(key)
         if not d or d.get("online") is False:
             return False
@@ -303,6 +312,9 @@ class AutomationService:
         self.notify(level, f"Kịch bản “{label}” chưa điều khiển được (đang offline): {', '.join(missed)}{extra}", source)
 
     def send(self, key: str, payload: dict, source: str):
+        if key in self.locked:
+            print(f"  ! {key} đang bị khóa — bỏ qua lệnh")
+            return
         if not self.is_online(key):
             print(f"  ! {key} đang offline — lệnh có thể bị mất")
         # "from"/"via" chỉ để hiển thị & ghi log: thiết bị bỏ qua các khóa không hiểu

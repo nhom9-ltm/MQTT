@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Quản trị — Nhà thông minh</title>
-  <script src="js/session.js?v=11" data-guard="admin"></script>
+  <script src="js/session.js?v=22" data-guard="admin"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=11">
-  <link rel="stylesheet" href="layout/layout.css?v=11">
-  <link rel="stylesheet" href="layout/sidebar.css?v=11">
-  <link rel="stylesheet" href="css/auth.css?v=11">
-  <link rel="stylesheet" href="css/admin.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=22">
+  <link rel="stylesheet" href="layout/layout.css?v=22">
+  <link rel="stylesheet" href="layout/sidebar.css?v=22">
+  <link rel="stylesheet" href="css/auth.css?v=22">
+  <link rel="stylesheet" href="css/admin.css?v=22">
   <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 </head>
 <body class="admin-page">
@@ -27,6 +27,14 @@
         <div class="crumb" id="pageCrumb">Tổng quan</div>
       </div>
       <div class="topbar-right">
+        <!-- Chuông: sang trang Thông báo; số = thông báo mới chưa xem (cùng số với mục Thông báo trên sidebar) -->
+        <a href="#/alerts" class="bell-btn" id="btnBell" aria-label="Thông báo" title="Xem thông báo">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="bell-badge" id="bellBadge" hidden>0</span>
+        </a>
         <span class="pill sm" id="brokerPill" title="Kết nối broker để xem thiết bị online và thông báo trực tiếp"><i></i><span>Broker: chưa kết nối</span></span>
         <div class="session-box" id="sessionBox" hidden>
           <span class="session-email" id="sessionEmail"></span>
@@ -50,21 +58,122 @@
 
       <!-- ===================== THIẾT BỊ ===================== -->
       <section class="page" id="admin-devices">
-        <section class="panel">
+        <!-- ---------- DANH SÁCH (#/devices) ---------- -->
+        <section class="panel" id="deviceListPanel">
           <div class="panel-head">
             <div>
-              <h3>Thiết bị đã đăng ký</h3>
-              <p class="muted panel-note">Trạng thái lấy trực tiếp từ broker (<code>home/&lt;phòng&gt;/&lt;mã&gt;/status</code>).</p>
+              <h3>Quản lý thiết bị</h3>
+              <p class="muted panel-note"><span id="devicesNote"></span>
+                <span class="src-legend"><i class="src-sim"></i>Giả lập</span>
+                <span class="src-legend"><i class="src-real"></i>Thiết bị thật</span></p>
             </div>
             <button type="button" class="btn primary sm" id="btnAddDevice">+ Thêm thiết bị</button>
           </div>
-          <div class="seg room-filter" id="roomFilter" aria-label="Lọc theo phòng"></div>
+          <form class="list-toolbar" id="deviceFilter" role="search" autocomplete="off">
+            <input type="search" id="devSearch" placeholder="Tìm theo mã hoặc tên thiết bị…" aria-label="Tìm thiết bị">
+            <input type="search" id="devHouseFilter" class="house-search" placeholder="Tìm họ tên hoặc địa chỉ…" aria-label="Lọc theo họ tên - địa chỉ">
+            <label class="filter-field">Phòng <select id="devRoomFilter"><option value="">Tất cả</option></select></label>
+            <label class="filter-field">Loại <select id="devTypeFilter"><option value="">Tất cả</option></select></label>
+            <label class="filter-field">Nguồn
+              <select id="devSourceFilter">
+                <option value="">Tất cả</option>
+                <option value="sim">Giả lập</option>
+                <option value="real">Thiết bị thật</option>
+              </select>
+            </label>
+            <label class="filter-field">Trạng thái
+              <select id="devStatusFilter">
+                <option value="">Tất cả</option>
+                <option value="active">Hoạt động</option>
+                <option value="locked">Khóa</option>
+              </select>
+            </label>
+            <button type="button" class="btn sm ghost" id="btnClearDeviceFilter">Xóa lọc</button>
+          </form>
           <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>Trạng thái</th><th>Phòng</th><th>Topic</th><th>Tên</th><th>Loại</th><th>Nguồn</th><th></th></tr></thead>
+            <table class="data-table device-table">
+              <thead><tr><th>Mã</th><th>Tên</th><th>Họ tên - Địa chỉ</th><th>Phòng</th><th>Loại</th><th>Trạng thái</th><th class="actions">Hành động</th></tr></thead>
               <tbody id="devicesBody"></tbody>
             </table>
           </div>
+        </section>
+
+        <!-- ---------- CHI TIẾT (#/devices/<id>) ---------- -->
+        <section class="panel device-detail" id="deviceDetail" hidden>
+          <div class="panel-head">
+            <div>
+              <h3 id="detailTitle">Chi tiết thiết bị</h3>
+              <p class="muted panel-note" id="detailSub"></p>
+            </div>
+          </div>
+          <p class="login-error" id="detailError" role="alert" hidden></p>
+
+          <!-- chế độ xem -->
+          <div id="detailView">
+            <dl class="detail-grid">
+              <div><dt>Mã thiết bị</dt><dd><code id="dvCode"></code></dd></div>
+              <div><dt>Tên</dt><dd id="dvName"></dd></div>
+              <div><dt>Loại</dt><dd id="dvType"></dd></div>
+              <div class="wide"><dt>Họ tên - Địa chỉ</dt><dd id="dvHouse"></dd></div>
+              <div><dt>Phòng</dt><dd id="dvRoom"></dd></div>
+              <div><dt>Topic</dt><dd><code id="dvTopic"></code></dd></div>
+              <div><dt>Nguồn</dt><dd id="dvSource"></dd></div>
+              <div><dt>Người thêm</dt><dd id="dvCreator"></dd></div>
+              <div><dt>Ngày thêm</dt><dd id="dvCreated"></dd></div>
+              <div><dt>Trạng thái</dt><dd id="dvStatus"></dd></div>
+              <div><dt>Kết nối broker</dt><dd id="dvLive"></dd></div>
+              <div class="wide"><dt>Người dùng đã kết nối</dt><dd id="dvUsers"></dd></div>
+            </dl>
+            <div class="dialog-actions">
+              <button type="button" class="btn ghost" id="btnDetailCancel">Hủy</button>
+              <button type="button" class="btn primary" id="btnDetailEdit">Cập nhật</button>
+            </div>
+          </div>
+
+          <!-- chế độ sửa -->
+          <form id="detailForm" novalidate hidden>
+            <div class="form-grid">
+              <div class="field">
+                <label for="deCode">Mã thiết bị</label>
+                <input id="deCode" required spellcheck="false" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="deName">Tên</label>
+                <input id="deName" required autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="deType">Loại</label>
+                <select id="deType"></select>
+              </div>
+              <div class="field full house-field">
+                <label for="deHouse">Họ tên - Địa chỉ</label>
+                <select id="deHouse" data-house-select></select>
+              </div>
+              <div class="field">
+                <label for="deRoom">Phòng</label>
+                <select id="deRoom"></select>
+              </div>
+              <div class="field">
+                <label for="deSource">Nguồn</label>
+                <select id="deSource">
+                  <option value="real">Thiết bị thật (ESP32…)</option>
+                  <option value="sim">Giả lập (run_simulator.py)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="deStatus">Trạng thái</label>
+                <select id="deStatus">
+                  <option value="1">Hoạt động</option>
+                  <option value="0">Khóa</option>
+                </select>
+              </div>
+            </div>
+            <p class="muted form-hint">Topic sau khi lưu: <code id="deTopic"></code>. Thiết bị thật phải publish đúng topic này.</p>
+            <div class="dialog-actions">
+              <button type="button" class="btn ghost" id="btnEditCancel">Hủy</button>
+              <button type="submit" class="btn primary" id="btnEditSave">Lưu thay đổi</button>
+            </div>
+          </form>
         </section>
 
         <section class="panel" id="unknownPanel" hidden>
@@ -85,20 +194,101 @@
 
       <!-- ===================== LUẬT TỰ ĐỘNG ===================== -->
       <section class="page" id="admin-rules">
-        <section class="panel">
+        <!-- ---------- DANH SÁCH (#/rules) ---------- -->
+        <section class="panel" id="ruleListPanel">
           <div class="panel-head">
             <div>
-              <h3>Luật tự động</h3>
-              <p class="muted panel-note">Lưu vào <code>backend/config/rules.json</code>; automation engine tự nạp lại ngay, không cần khởi động lại.</p>
+              <h3>Quản lý luật tự động</h3>
+              <p class="muted panel-note"><span id="rulesNote"></span> Automation tự nạp lại ngay khi luật thay đổi, không cần khởi động lại.</p>
             </div>
             <button type="button" class="btn primary sm" id="btnAddRule">+ Thêm luật</button>
           </div>
+          <form class="list-toolbar" id="ruleFilter" role="search" autocomplete="off">
+            <input type="search" id="ruleSearch" placeholder="Tìm theo tên hoặc mã luật…" aria-label="Tìm luật">
+            <input type="search" id="ruleHouseFilter" class="house-search" placeholder="Tìm họ tên hoặc địa chỉ…" aria-label="Lọc theo họ tên - địa chỉ">
+            <label class="filter-field">Kích hoạt
+              <select id="ruleKindFilter">
+                <option value="">Tất cả</option>
+                <option value="device">Theo thiết bị</option>
+                <option value="at">Theo giờ</option>
+              </select>
+            </label>
+            <label class="filter-field">Phòng <select id="ruleRoomFilter"><option value="">Tất cả</option></select></label>
+            <label class="filter-field">Trạng thái
+              <select id="ruleStatusFilter">
+                <option value="">Tất cả</option>
+                <option value="on">Đang bật</option>
+                <option value="off">Đã tắt</option>
+              </select>
+            </label>
+            <button type="button" class="btn sm ghost" id="btnClearRuleFilter">Xóa lọc</button>
+          </form>
           <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>Bật</th><th>Tên luật</th><th>Kích hoạt khi</th><th class="num">Hành động</th><th></th></tr></thead>
+            <table class="data-table rule-table">
+              <thead><tr><th>Tên luật</th><th>Họ tên - Địa chỉ</th><th>Điều kiện</th><th class="num">Thiết bị liên quan</th><th>Trạng thái</th><th class="actions">Hành động</th></tr></thead>
               <tbody id="rulesBody"></tbody>
             </table>
           </div>
+        </section>
+
+        <!-- ---------- CHI TIẾT (#/rules/<mã>) ---------- -->
+        <section class="panel rule-detail" id="ruleDetail" hidden>
+          <div class="panel-head">
+            <div>
+              <h3 id="rdTitle">Chi tiết luật</h3>
+              <p class="muted panel-note" id="rdSub"></p>
+            </div>
+          </div>
+          <p class="login-error" id="rdError" role="alert" hidden></p>
+
+          <div id="rdView">
+            <dl class="detail-grid">
+              <div><dt>Mã luật</dt><dd><code id="rdCode"></code></dd></div>
+              <div><dt>Trạng thái</dt><dd id="rdStatus"></dd></div>
+              <div><dt>Nghỉ giữa 2 lần chạy</dt><dd id="rdCooldown"></dd></div>
+              <div class="wide"><dt>Họ tên - Địa chỉ</dt><dd id="rdHouse"></dd></div>
+              <div class="wide"><dt>Mô tả</dt><dd id="rdDesc"></dd></div>
+              <div class="wide"><dt>Điều kiện</dt><dd><ul class="plain-list" id="rdConds"></ul></dd></div>
+              <div class="wide"><dt>Hành động (chạy lần lượt)</dt><dd><ol class="plain-list" id="rdActions"></ol></dd></div>
+              <div class="wide"><dt>Thiết bị liên quan</dt><dd id="rdDevices"></dd></div>
+            </dl>
+            <div class="dialog-actions">
+              <button type="button" class="btn ghost" id="btnRdCancel">Hủy</button>
+              <button type="button" class="btn primary" id="btnRdEdit">Cập nhật</button>
+            </div>
+          </div>
+
+          <!-- chế độ sửa: chỉ thông tin chính + điều kiện kích hoạt; điều kiện phụ và hành động giữ nguyên -->
+          <form id="rdForm" novalidate hidden>
+            <div class="form-grid">
+              <div class="field">
+                <label for="reName">Tên luật</label>
+                <input id="reName" required autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="reCooldown">Nghỉ giữa 2 lần chạy (giây)</label>
+                <input id="reCooldown" type="number" min="0" placeholder="0">
+              </div>
+              <div class="field full">
+                <label for="reDesc">Mô tả (tùy chọn)</label>
+                <input id="reDesc" autocomplete="off">
+              </div>
+              <div class="field full">
+                <label for="reHouse">Họ tên - Địa chỉ (luật chỉ dùng thiết bị của nhà này)</label>
+                <select id="reHouse" data-house-select></select>
+              </div>
+              <fieldset class="field full trigger-box" id="reTrigger"></fieldset>
+              <div class="field">
+                <label for="reEnabled">Trạng thái</label>
+                <select id="reEnabled"><option value="1">Đang bật</option><option value="0">Đã tắt</option></select>
+              </div>
+            </div>
+            <p class="muted form-hint">Điều kiện phụ và hành động của luật được giữ nguyên.</p>
+            <div class="dialog-actions">
+              <button type="button" class="btn ghost" id="btnReCancel">Hủy</button>
+              <button type="submit" class="btn primary" id="btnReSave">Lưu thay đổi</button>
+            </div>
+          </form>
         </section>
       </section>
 
@@ -133,7 +323,7 @@
             <button type="button" class="btn primary sm" id="btnAddUser">+ Thêm tài khoản</button>
           </div>
           <form class="list-toolbar" id="userFilter" role="search" autocomplete="off">
-            <input type="search" id="userSearch" placeholder="Tìm theo email hoặc họ tên…" aria-label="Tìm tài khoản">
+            <input type="search" id="userSearch" placeholder="Tìm theo email, họ tên, SĐT hoặc địa chỉ…" aria-label="Tìm tài khoản">
             <label class="filter-field">Vai trò
               <select id="userRoleFilter">
                 <option value="">Tất cả</option>
@@ -152,7 +342,7 @@
           </form>
           <div class="table-wrap">
             <table class="data-table">
-              <thead><tr><th>Email</th><th>Họ tên</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày tạo</th><th>Đăng nhập gần nhất</th><th class="actions">Hành động</th></tr></thead>
+              <thead><tr><th>Email</th><th>Họ tên</th><th>SĐT</th><th>Địa chỉ nhà</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày tạo</th><th>Đăng nhập gần nhất</th><th class="actions">Hành động</th></tr></thead>
               <tbody id="usersBody"></tbody>
             </table>
           </div>
@@ -203,9 +393,18 @@
         <label for="userEmail">Email</label>
         <input id="userEmail" type="email" required placeholder="ten@gmail.com" spellcheck="false" autocomplete="off">
       </div>
-      <div class="field full">
+      <div class="field">
         <label for="userName">Họ tên</label>
         <input id="userName" required autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="userPhone">Số điện thoại (tùy chọn)</label>
+        <input id="userPhone" type="tel" inputmode="numeric" placeholder="vd: 0901234567" autocomplete="off">
+      </div>
+      <div class="field full house-field" id="userHouseField">
+        <label for="userHouse">Địa chỉ nhà (bắt buộc với người dùng)</label>
+        <select id="userHouse" data-house-select></select>
+        <input id="userHouseNew" data-house-new placeholder="Nhập địa chỉ nhà mới" autocomplete="off" hidden>
       </div>
       <div class="field">
         <label for="userRole">Vai trò</label>
@@ -281,6 +480,10 @@
     <h3 id="deviceTitle">Thêm thiết bị</h3>
     <p class="login-error" id="deviceError" role="alert" hidden></p>
     <div class="form-grid">
+      <div class="field full house-field">
+        <label for="devHouse">Họ tên - Địa chỉ</label>
+        <select id="devHouse" data-house-select required></select>
+      </div>
       <div class="field">
         <label for="devRoom">Phòng</label>
         <select id="devRoom" required></select>
@@ -313,10 +516,10 @@
   </form>
 </dialog>
 
-<!-- ===================== FORM LUẬT ===================== -->
+<!-- ===================== FORM THÊM LUẬT ===================== -->
 <dialog class="admin-dialog wide" id="ruleDialog">
   <form method="dialog" id="ruleForm" novalidate>
-    <h3 id="ruleTitle">Thêm luật</h3>
+    <h3>Thêm luật</h3>
     <p class="login-error" id="ruleError" role="alert" hidden></p>
     <div class="form-grid">
       <div class="field">
@@ -331,84 +534,41 @@
         <label for="ruleDesc">Mô tả (tùy chọn)</label>
         <input id="ruleDesc" autocomplete="off">
       </div>
-
+      <div class="field full">
+        <label for="ruleHouse">Họ tên - Địa chỉ (chọn trước — danh sách thiết bị bên dưới chỉ gồm thiết bị của nhà này)</label>
+        <select id="ruleHouse" data-house-select required></select>
+      </div>
+      <fieldset class="field full trigger-box" id="ruleTrigger"></fieldset>
       <fieldset class="field full trigger-box">
-        <legend>Kích hoạt khi</legend>
-        <div class="seg" id="trigKind">
-          <button type="button" data-kind="device" class="on">Trạng thái thiết bị</button>
-          <button type="button" data-kind="at">Đến giờ</button>
-        </div>
-        <div class="form-grid trig-device">
-          <div class="field full">
-            <label for="trigDevice">Thiết bị</label>
-            <select id="trigDevice"></select>
-          </div>
-          <div class="field">
-            <label for="trigField">Trường</label>
-            <input id="trigField" list="fieldList" placeholder="temperature" spellcheck="false" autocomplete="off">
-          </div>
-          <div class="field">
-            <label for="trigOp">So sánh</label>
-            <select id="trigOp">
-              <option>==</option><option>!=</option><option>&gt;</option><option>&gt;=</option><option>&lt;</option><option>&lt;=</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="trigValue">Giá trị</label>
-            <input id="trigValue" placeholder="31 hoặc true" spellcheck="false" autocomplete="off">
-          </div>
-          <div class="field">
-            <label for="trigFor">Giữ trong (giây)</label>
-            <input id="trigFor" type="number" min="0" placeholder="0">
-          </div>
-        </div>
-        <div class="form-grid trig-at" hidden>
-          <div class="field">
-            <label for="trigAt">Giờ</label>
-            <input id="trigAt" type="time">
-          </div>
-        </div>
+        <legend>Và chỉ khi (tùy chọn)</legend>
+        <div class="builder" id="condRows"></div>
+        <button type="button" class="btn sm ghost" id="btnAddCond">+ Thêm điều kiện</button>
       </fieldset>
-
-      <div class="field full">
-        <label for="ruleConds">Điều kiện phụ — JSON, tất cả phải đúng (tùy chọn)</label>
-        <textarea id="ruleConds" rows="3" spellcheck="false" placeholder='[{"mode": ["home"]}, {"device": "living/ac", "field": "on", "op": "==", "value": false}]'></textarea>
-      </div>
-      <div class="field full">
-        <label for="ruleActions">Hành động — JSON, chạy lần lượt</label>
-        <textarea id="ruleActions" rows="5" spellcheck="false" placeholder='[{"device": "living/ac", "set": {"on": true, "target": 26}}, {"notify": "Đã bật điều hòa", "level": "info"}]'></textarea>
-        <details class="form-hint">
-          <summary>Các dạng hợp lệ</summary>
-          <ul>
-            <li>Điều kiện: <code>{"device":"phòng/mã","field":"on","op":"==","value":true}</code> · <code>{"mode":["home","night"]}</code> · <code>{"time":{"after":"18:00","before":"06:00"}}</code></li>
-            <li>Hành động: <code>{"device":"phòng/mã","set":{"on":true}}</code> · <code>{"type":"light","set":{"on":false},"room":"living"}</code> · <code>{"notify":"Nội dung {temperature}","level":"info|warn|critical"}</code> · <code>{"delay":30}</code> · <code>{"scene":"away"}</code> · <code>{"mode":"night"}</code></li>
-          </ul>
-        </details>
-      </div>
+      <fieldset class="field full trigger-box">
+        <legend>Thì làm (chạy lần lượt)</legend>
+        <div class="builder" id="actRows"></div>
+        <button type="button" class="btn sm ghost" id="btnAddAct">+ Thêm hành động</button>
+      </fieldset>
       <div class="field">
         <label for="ruleCooldown">Nghỉ giữa 2 lần chạy (giây)</label>
         <input id="ruleCooldown" type="number" min="0" placeholder="0">
       </div>
-      <label class="check-field"><input type="checkbox" id="ruleEnabled" checked> Bật luật</label>
+      <label class="check-field"><input type="checkbox" id="ruleEnabled" checked> Bật luật ngay</label>
     </div>
-    <datalist id="fieldList">
-      <option value="temperature"><option value="humidity"><option value="on"><option value="motion">
-      <option value="open"><option value="locked"><option value="alarm"><option value="ppm"><option value="power">
-    </datalist>
     <div class="dialog-actions">
       <button type="button" class="btn ghost" data-close>Hủy</button>
-      <button type="submit" class="btn primary" id="ruleSubmit">Lưu</button>
+      <button type="submit" class="btn primary" id="ruleSubmit">Thêm luật</button>
     </div>
   </form>
 </dialog>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
-<script src="js/admin.js?v=11"></script>
-<script src="js/admin-overview.js?v=11"></script>
-<script src="js/admin-devices.js?v=11"></script>
-<script src="js/admin-rules.js?v=11"></script>
-<script src="js/admin-users.js?v=11"></script>
-<script src="js/admin-logins.js?v=11"></script>
+<script src="js/admin.js?v=22"></script>
+<script src="js/admin-overview.js?v=22"></script>
+<script src="js/admin-devices.js?v=22"></script>
+<script src="js/admin-rules.js?v=22"></script>
+<script src="js/admin-users.js?v=22"></script>
+<script src="js/admin-logins.js?v=22"></script>
 </body>
 </html>

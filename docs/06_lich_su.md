@@ -16,7 +16,7 @@
 
 ## 1. Bối cảnh
 
-`frontend/history.html` là **trang riêng** (không nằm trong ứng dụng một trang `index.html`), dùng `frontend/js/history.js` để gọi API `backend/run_api.py` (mặc định `http://<host>:8000`) và vẽ: 4 ô KPI, nhiệt độ/độ ẩm theo phòng, điện năng theo ngày và theo thiết bị, "Ai ra lệnh?", "Thiết bị bị điều khiển nhiều nhất", danh sách cảnh báo. Hiện nó có thanh trên riêng với nút "← Dashboard", chưa có sidebar.
+`frontend/history.html` là **trang riêng** (không nằm trong ứng dụng một trang `index.html`), dùng `frontend/js/history.js` để gọi API `backend/run_api.py` (mặc định `http://<host>:8011`) và vẽ: 4 ô KPI, nhiệt độ/độ ẩm theo phòng, điện năng theo ngày và theo thiết bị, "Ai ra lệnh?", "Thiết bị bị điều khiển nhiều nhất", danh sách cảnh báo. Hiện nó có thanh trên riêng với nút "← Dashboard", chưa có sidebar.
 
 **Quyết định đã chốt:** giữ `history.html` là **trang riêng** (không nhúng vào `index.html`). Mục "Lịch sử" trên sidebar của `index.html` là liên kết sang `history.html`.
 
@@ -40,7 +40,7 @@ Tham chiếu bắt buộc: **wireframe** `frontend/layout/sidebar_wireframe.html
 
 **3.4. Khi API không chạy** (ví dụ mở trên GitHub Pages hoặc chưa chạy `python backend/run_api.py`): hiển thị thông báo lỗi hiện có của `history.js` trong ô KPI, **không bị vỡ bố cục**. Không sửa nội dung thông báo.
 
-**3.5. Chế độ mở bằng `file://`:** vẫn dùng được như hiện tại (API mặc định `http://localhost:8000`); sidebar hiển thị đúng và các liên kết sang `index.html#/…` hoạt động.
+**3.5. Chế độ mở bằng `file://`:** vẫn dùng được như hiện tại (API mặc định `http://localhost:8011`); sidebar hiển thị đúng và các liên kết sang `index.html#/…` hoạt động.
 
 ### Điểm CHƯA được chốt — KHÔNG tự làm, ghi vào "Cần xác nhận"
 - Nhúng nội dung Lịch sử vào `index.html` (ứng dụng một trang).

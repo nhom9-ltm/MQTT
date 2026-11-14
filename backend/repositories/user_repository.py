@@ -9,8 +9,9 @@ from backend.repositories.postgres import connection
 
 USER_SELECT = """
     SELECT u.id, u.email, u.full_name, r.code AS role, r.name AS role_name, u.is_active,
-           u.created_at, u.last_login_at
+           u.created_at, u.last_login_at, u.phone, u.house_id, h.address AS house_address
     FROM users u JOIN roles r ON r.id = u.role_id
+    LEFT JOIN houses h ON h.id = u.house_id
     WHERE u.deleted_at IS NULL
 """
 
@@ -19,8 +20,8 @@ def list_users(q: str = "", role: str = "", status: str = "") -> list[dict]:
     """q: tìm theo email hoặc họ tên (không phân biệt hoa thường); role: mã vai trò; status: active | locked."""
     where, params = [""], []
     if q:
-        where.append("(u.email ILIKE %s OR u.full_name ILIKE %s)")
-        params += [f"%{q}%", f"%{q}%"]
+        where.append("(u.email ILIKE %s OR u.full_name ILIKE %s OR u.phone ILIKE %s OR h.address ILIKE %s)")
+        params += [f"%{q}%"] * 4
     if role:
         where.append("r.code = %s")
         params.append(role)
@@ -45,6 +46,13 @@ def email_taken(email: str, except_id: int | None = None) -> bool:
         return row is not None
 
 
+def phone_taken(phone: str, except_id: int | None = None) -> bool:
+    with connection() as con:
+        row = con.execute("SELECT 1 FROM users WHERE phone = %s AND id IS DISTINCT FROM %s AND deleted_at IS NULL",
+                          (phone, except_id)).fetchone()
+        return row is not None
+
+
 def deleted_id_by_email(email: str) -> int | None:
     """Id tài khoản đã xóa mềm đang giữ email này (email là UNIQUE nên tạo lại phải dùng lại bản ghi đó)."""
     with connection() as con:
@@ -60,29 +68,31 @@ def count_active_admins(except_id: int | None = None) -> int:
             (except_id,)).fetchone()["n"]
 
 
-def create_user(email: str, password_hash: str, full_name: str, role: str, is_active: bool) -> int:
+def create_user(email: str, password_hash: str, full_name: str, role: str, is_active: bool,
+                phone: str | None = None, house_id: int | None = None) -> int:
     with connection() as con:
         revived = con.execute(                 # email từng thuộc tài khoản đã xóa → dùng lại bản ghi đó
             "UPDATE users SET password_hash = %s, full_name = %s, role_id = (SELECT id FROM roles WHERE code = %s), "
-            "is_active = %s, deleted_at = NULL, created_at = now(), last_login_at = NULL "
+            "is_active = %s, phone = %s, house_id = %s, deleted_at = NULL, created_at = now(), last_login_at = NULL "
             "WHERE email = %s AND deleted_at IS NOT NULL RETURNING id",
-            (password_hash, full_name, role, is_active, email)).fetchone()
+            (password_hash, full_name, role, is_active, phone, house_id, email)).fetchone()
         if revived:
             return revived["id"]
         return con.execute(
-            "INSERT INTO users (email, password_hash, full_name, role_id, is_active) "
-            "SELECT %s, %s, %s, id, %s FROM roles WHERE code = %s RETURNING id",
-            (email, password_hash, full_name, is_active, role)).fetchone()["id"]
+            "INSERT INTO users (email, password_hash, full_name, role_id, is_active, phone, house_id) "
+            "SELECT %s, %s, %s, id, %s, %s, %s FROM roles WHERE code = %s RETURNING id",
+            (email, password_hash, full_name, is_active, phone, house_id, role)).fetchone()["id"]
 
 
 def update_user(user_id: int, email: str, full_name: str, role: str, is_active: bool,
-                password_hash: str | None) -> None:
+                password_hash: str | None, phone: str | None, house_id: int | None) -> None:
     """Đổi mật khẩu hoặc khóa tài khoản thì xóa luôn các phiên đang mở để người đó phải đăng nhập lại."""
     with connection() as con:
         con.execute(
             "UPDATE users SET email = %s, full_name = %s, role_id = (SELECT id FROM roles WHERE code = %s), "
-            "is_active = %s, password_hash = COALESCE(%s, password_hash) WHERE id = %s AND deleted_at IS NULL",
-            (email, full_name, role, is_active, password_hash, user_id))
+            "is_active = %s, password_hash = COALESCE(%s, password_hash), phone = %s, house_id = %s "
+            "WHERE id = %s AND deleted_at IS NULL",
+            (email, full_name, role, is_active, password_hash, phone, house_id, user_id))
         if password_hash or not is_active:
             con.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
 

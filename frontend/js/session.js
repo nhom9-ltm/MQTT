@@ -16,7 +16,7 @@
 
   if (qs.get("api")) store.set("sh.api", qs.get("api"));
   const web = location.protocol === "http:" || location.protocol === "https:";
-  const apiBase = (store.get("sh.api") || (web ? `${location.protocol}//${location.hostname}:8001` : "http://localhost:8001"))
+  const apiBase = (store.get("sh.api") || (web ? `${location.protocol}//${location.hostname}:8011` : "http://localhost:8011"))
     .replace(/\/$/, "");
 
   const token = () => store.get("sh.token");

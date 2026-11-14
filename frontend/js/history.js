@@ -1,5 +1,5 @@
 /* Trang Lịch sử (#/history trong index.html): gọi API (backend/run_api.py) và vẽ biểu đồ bằng Chart.js.
- * API mặc định http://<host của trang>:8001 ; đổi bằng ?api=http://host:8001
+ * API mặc định http://<host của trang>:8011 ; đổi bằng ?api=http://host:8011
  * Dữ liệu chỉ được nạp khi người dùng mở trang này (nav.js phát sự kiện "sh:history-show"). */
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -12,7 +12,7 @@
     kpis: $("histKpis"), alerts: $("histAlerts") };
   // Mở bằng file:// thì không có hostname/giao thức http -> dùng thẳng localhost
   const web = location.protocol === "http:" || location.protocol === "https:";
-  el.api.value = qs.get("api") || (web ? `${location.protocol}//${location.hostname}:8001` : "http://localhost:8001");
+  el.api.value = qs.get("api") || (web ? `${location.protocol}//${location.hostname}:8011` : "http://localhost:8011");
   if (qs.get("hours")) el.range.value = qs.get("hours");
 
   const charts = {};

@@ -349,3 +349,22 @@ class AddSceneTests(SceneBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LockedDeviceTests(SceneBase):
+    """Thiết bị bị quản trị viên khóa (home/_admin/locked/state): automation không gửi lệnh tới, luật không chạy theo."""
+
+    def test_locked_device_gets_no_command(self):
+        svc, pub = self.build()
+        with contextlib.redirect_stdout(io.StringIO()):
+            svc.handle_message("_admin", "locked", "state", {"devices": ["living/light"]})
+        self.assertFalse(svc.is_online("living/light"))
+        self.run_scene(svc, "home")
+        self.assertNotIn("living/light", pub.targets())
+
+    def test_unlock_restores(self):
+        svc, _ = self.build()
+        with contextlib.redirect_stdout(io.StringIO()):
+            svc.handle_message("_admin", "locked", "state", {"devices": ["living/light"]})
+            svc.handle_message("_admin", "locked", "state", {"devices": []})
+        self.assertTrue(svc.is_online("living/light"))

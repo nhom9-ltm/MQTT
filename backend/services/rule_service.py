@@ -8,9 +8,9 @@ from __future__ import annotations
 import os
 
 from backend.common.paths import CONFIG_DIR
-from backend.repositories import admin_repository, device_repository, rule_repository
+from backend.repositories import admin_repository, device_repository, house_repository, rule_repository
 from backend.repositories.scene_repository import custom_path_for, load_custom_scenes
-from backend.services.rule_helpers import load_json
+from backend.services.rule_helpers import MODES, load_json
 from backend.services.rule_validation import RuleError, validate_rule
 
 SCENES_PATH = os.path.join(CONFIG_DIR, "scenes.json")
@@ -20,17 +20,31 @@ class RuleNotFound(LookupError):
     pass
 
 
+def _scenes() -> list[dict]:
+    return load_json(SCENES_PATH) + load_custom_scenes(custom_path_for(SCENES_PATH))
+
+
 def _scene_ids() -> set[str]:
-    base = load_json(SCENES_PATH)
-    return {s["id"] for s in base} | {s["id"] for s in load_custom_scenes(custom_path_for(SCENES_PATH))}
+    return {s["id"] for s in _scenes()}
+
+
+def options() -> dict:
+    """Dữ liệu cho form luật trên trang quản trị: kịch bản và chế độ nhà."""
+    return {"scenes": [{"id": s["id"], "name": s.get("name", s["id"])} for s in _scenes()], "modes": MODES}
 
 
 def _validate(data: dict) -> dict:
+    """Luật thuộc một địa chỉ nhà và chỉ được dùng thiết bị của nhà đó."""
+    try:
+        house_id = int(data.get("house_id"))
+    except (TypeError, ValueError):
+        raise RuleError("Chọn địa chỉ nhà cho luật") from None
     return validate_rule(
-        data,
-        devices=device_repository.device_keys(),
+        {**data, "house_id": house_id},
+        devices=device_repository.device_keys(house_id),
         types={t["code"] for t in device_repository.list_types()},
         scenes=_scene_ids(),
+        houses=house_repository.ids(),
     )
 
 
@@ -62,7 +76,8 @@ def update(rule_id: str, data: dict) -> dict:
     idx = next((i for i, r in enumerate(rules) if r["id"] == rule_id), None)
     if idx is None:
         raise RuleNotFound("Không tìm thấy luật")
-    rule = _validate({**data, "id": rule_id})          # không cho đổi mã luật khi sửa
+    # không cho đổi mã luật khi sửa; không gửi địa chỉ nhà thì giữ địa chỉ cũ
+    rule = _validate({"house_id": rules[idx].get("house_id"), **data, "id": rule_id})
     rules[idx] = rule
     _save(rules)
     return rule

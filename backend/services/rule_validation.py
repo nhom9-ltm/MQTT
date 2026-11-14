@@ -24,7 +24,7 @@ def _device(value, where: str, devices: set[str]) -> str:
     if not isinstance(value, str) or not DEVICE_RE.fullmatch(value):
         raise RuleError(f"{where}: thiết bị phải có dạng phòng/mã, ví dụ living/light")
     if value not in devices:
-        raise RuleError(f"{where}: thiết bị “{value}” chưa được đăng ký")
+        raise RuleError(f"{where}: thiết bị “{value}” chưa được đăng ký ở địa chỉ nhà này")
     return value
 
 
@@ -124,8 +124,9 @@ def _action(a, i: int, devices: set[str], types: set[str], scenes: set[str]) -> 
     raise RuleError(f"{where}: phải có một trong các khóa set, notify, delay, scene, mode")
 
 
-def validate_rule(data, *, devices: set[str], types: set[str], scenes: set[str]) -> dict:
-    """devices: các khóa "phòng/mã" đã đăng ký; types: loại thiết bị; scenes: mã kịch bản."""
+def validate_rule(data, *, devices: set[str], types: set[str], scenes: set[str], houses: set[int] | None = None) -> dict:
+    """devices: các khóa "phòng/mã" được dùng (thường là thiết bị cùng nhà với luật); types: loại thiết bị;
+    scenes: mã kịch bản; houses: id các địa chỉ nhà hợp lệ (None = không kiểm tra địa chỉ)."""
     if not isinstance(data, dict):
         raise RuleError("Dữ liệu luật không hợp lệ")
     rule_id = str(data.get("id", "")).strip()
@@ -147,8 +148,13 @@ def validate_rule(data, *, devices: set[str], types: set[str], scenes: set[str])
         "name": name,
         "description": str(data.get("description", "")).strip()[:300],
         "enabled": bool(data.get("enabled", True)),
-        "trigger": _trigger(data.get("trigger"), devices),
     }
+    if houses is not None:
+        house_id = data.get("house_id")
+        if isinstance(house_id, bool) or not isinstance(house_id, int) or house_id not in houses:
+            raise RuleError("Chọn địa chỉ nhà cho luật")
+        rule["house_id"] = house_id
+    rule["trigger"] = _trigger(data.get("trigger"), devices)
     if conditions:
         rule["conditions"] = [_condition(c, i, devices) for i, c in enumerate(conditions, 1)]
     rule["actions"] = [_action(a, i, devices, types, scenes) for i, a in enumerate(actions, 1)]

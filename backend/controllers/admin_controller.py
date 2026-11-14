@@ -7,11 +7,14 @@
   /api/admin/roles            GET                 2 vai trò cố định (admin, user) + quyền + số tài khoản
   /api/admin/roles/{code}     PUT                 đổi tên hiển thị
   /api/admin/devices          GET, POST           thiết bị đã đăng ký
-  /api/admin/devices/{id}     PUT, DELETE
+  /api/admin/devices/{id}     GET, PUT, DELETE
+  /api/admin/devices/{id}/active  PUT             khóa / mở khóa thiết bị
   /api/admin/device-options   GET                 danh sách phòng + loại thiết bị cho form
+  /api/admin/houses           GET                 địa chỉ nhà (kèm số thiết bị, số tài khoản)
   /api/admin/rules            GET, POST           luật tự động (rules.json)
   /api/admin/rules/{id}       PUT, DELETE
   /api/admin/rules/{id}/enabled   PUT             bật/tắt nhanh
+  /api/admin/rule-options     GET                 kịch bản + chế độ nhà cho form luật
 """
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
@@ -96,9 +99,24 @@ def device_options():
     return device_service.options()
 
 
+@router.get("/houses")
+def houses():
+    return device_service.houses()
+
+
+@router.get("/devices/{device_id}")
+def get_device(device_id: int):
+    return _call(device_service.get, device_id)
+
+
 @router.post("/devices", status_code=201)
-def create_device(body: dict = Body(...)):
-    return _call(device_service.create, body)
+def create_device(body: dict = Body(...), admin: dict = Depends(require_admin)):
+    return _call(device_service.create, body, admin["id"])
+
+
+@router.put("/devices/{device_id}/active")
+def set_device_active(device_id: int, body: dict = Body(...)):
+    return _call(device_service.set_active, device_id, bool(body.get("is_active")))
 
 
 @router.put("/devices/{device_id}")
@@ -115,6 +133,11 @@ def delete_device(device_id: int):
 @router.get("/rules")
 def list_rules():
     return rule_service.list_rules()
+
+
+@router.get("/rule-options")
+def rule_options():
+    return rule_service.options()
 
 
 @router.post("/rules", status_code=201)

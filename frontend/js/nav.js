@@ -33,12 +33,6 @@
       icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>'
     },
     {
-      id: "scenes",
-      hash: "#/scenes",
-      label: "Kịch bản",
-      icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
-    },
-    {
       id: "rules",
       hash: "#/rules",
       label: "Luật tự động",
@@ -145,7 +139,7 @@
     }
   }
 
-  const VALID_PAGES = ["home", "devices", "scenes", "rules", "alerts", "history", "log"];
+  const VALID_PAGES = ["home", "devices", "rules", "alerts", "history", "log"];
 
   /** Đánh dấu mục menu đang chọn (chỉ đổi những mục thật sự thay đổi). */
   function setActiveNav(targetPageId) {
@@ -203,7 +197,6 @@
     const pageTitleMap = {
       home: "Trang chủ",
       devices: "Thiết bị",
-      scenes: "Kịch bản",
       rules: "Luật tự động",
       alerts: "Thông báo",
       history: "Lịch sử",

@@ -10,11 +10,11 @@ ME = {"id": 1, "email": "admin@gmail.com", "role": "admin"}
 
 def account(id=2, role="user", active=True):
     return {"id": id, "email": f"u{id}@gmail.com", "full_name": "Tên", "role": role, "role_name": role,
-            "is_active": active}
+            "is_active": active, "phone": None, "house_id": None if role == "admin" else 1}
 
 
 def body(**kw):
-    data = {"email": "moi@gmail.com", "full_name": "Người mới", "role": "user", "password": "abc123"}
+    data = {"email": "moi@gmail.com", "full_name": "Người mới", "role": "user", "password": "abc123", "house_id": 1}
     data.update(kw)
     return data
 
@@ -26,6 +26,12 @@ class UserServiceTest(unittest.TestCase):
         self.addCleanup(p.stop)
         self.repo.email_taken.return_value = False
         self.repo.deleted_id_by_email.return_value = None
+        self.repo.phone_taken.return_value = False
+        h = patch.object(user_service, "house_repository")
+        self.houses = h.start()
+        self.addCleanup(h.stop)
+        self.houses.ids.return_value = {1}
+        self.houses.normalize.side_effect = lambda a: " ".join(str(a or "").split())
         self.repo.count_active_admins.return_value = 1
 
     def test_create_hashes_password(self):
@@ -47,7 +53,7 @@ class UserServiceTest(unittest.TestCase):
     def test_update_keeps_password_when_blank(self):
         self.repo.get_user.return_value = account()
         user_service.update(2, body(password=""), ME)
-        self.assertIsNone(self.repo.update_user.call_args.args[-1])
+        self.assertIsNone(self.repo.update_user.call_args.args[5])     # password_hash
 
     def test_cannot_demote_or_lock_self(self):
         self.repo.get_user.return_value = account(id=1, role="admin")
@@ -80,6 +86,15 @@ class UserServiceTest(unittest.TestCase):
         self.repo.count_active_admins.return_value = 0
         with self.assertRaises(UserError):
             user_service.set_active(3, False, ME)              # admin cuối cùng
+
+    def test_user_needs_house_admin_does_not(self):
+        self.repo.create_user.return_value = 5
+        with self.assertRaises(UserError):
+            user_service.create(body(house_id=None))                       # user thiếu địa chỉ
+        user_service.create(body(role="admin", house_id=None))             # admin không cần địa chỉ
+        self.assertIsNone(self.repo.create_user.call_args.args[-1])
+        with self.assertRaises(UserError):
+            user_service.create(body(phone="12345"))                       # SĐT sai định dạng
 
     def test_delete_other_user(self):
         self.repo.get_user.return_value = account(id=2)

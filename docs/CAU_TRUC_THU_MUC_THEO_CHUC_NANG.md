@@ -37,7 +37,7 @@ MQTT/
 
 ```
 backend/
-├── run_api.py            Điểm vào API HTTP (FastAPI, cổng 8001); tự nạp seed khi khởi động
+├── run_api.py            Điểm vào API HTTP (FastAPI, cổng 8011); tự nạp seed khi khởi động
 ├── run_simulator.py      Điểm vào 20 thiết bị giả lập
 ├── run_automation.py     Điểm vào automation engine (luật + kịch bản)
 ├── run_logger.py         Điểm vào logger ghi lịch sử SQLite
@@ -66,12 +66,14 @@ Các tiến trình không gọi trực tiếp nhau, chỉ giao tiếp qua broker
 ```
 frontend/
 ├── login.html            Trang đăng nhập (mở đầu tiên)
+├── register.html         Trang đăng ký người dùng: SĐT + họ tên → OTP giả lập → email, địa chỉ, mật khẩu
 ├── index.html            Dashboard người dùng: ứng dụng một trang, 7 màn hình theo #hash
 ├── admin.html            Trang quản trị (chỉ vai trò admin)
 ├── history.html          Chỉ chuyển hướng sang index.html#/history
 ├── js/
 │   ├── session.js        Lưu token, gọi API, chặn trang theo vai trò (nạp trong <head> mọi trang)
 │   ├── login.js          Xử lý form đăng nhập, nút hiện/ẩn mật khẩu, chuyển trang theo vai trò
+│   ├── register.js       Đăng ký 3 bước, ô OTP 6 số, thông báo thành công/thất bại
 │   ├── admin.js          Trang quản trị — lõi: sidebar, điều hướng #hash, gọi API, kết nối broker dùng chung
 │   ├── admin-overview.js Tổng quan (số tài khoản, thiết bị, thông báo) + trang Thông báo
 │   ├── admin-devices.js  Thiết bị: thêm/sửa/xóa, lọc theo phòng, trạng thái online từ broker
@@ -80,11 +82,11 @@ frontend/
 │   ├── admin-logins.js   Lịch sử đăng nhập (chỉ xem)
 │   ├── nav.js            Sidebar, router #hash, thanh trên
 │   ├── app.js            Kết nối MQTT over WebSocket, thẻ thiết bị, chế độ, kịch bản, luật, thông báo, log
-│   ├── scene-editor.js   Tạo kịch bản mới ngay trên dashboard
 │   ├── history.js        Màn hình Lịch sử: gọi API và vẽ biểu đồ Chart.js
+│   ├── device-connect.js Trang người dùng → Thiết bị: nút "Kết nối thiết bị" (nhập mã thiết bị)
 │   └── auth.js           Gắn tài khoản MQTT khi broker bật xác thực
 ├── mock/demo.js          Chế độ Demo: giả lập broker + 20 thiết bị + automation ngay trong trình duyệt
-├── css/                  style.css (biến màu, thẻ, nút) · auth.css (đăng nhập) · admin.css (trang quản trị) · history.css · scene-editor.css
+├── css/                  style.css (biến màu, thẻ, nút) · auth.css (đăng nhập, đăng ký) · admin.css (trang quản trị) · history.css
 └── layout/               layout.css, sidebar.css (bố cục) · sidebar_wireframe.html (bản vẽ khung, chỉ tham khảo)
 ```
 
@@ -121,6 +123,37 @@ cùng định dạng topic với thiết bị giả lập. Copy `secrets.example
 | Cache | Link JS/CSS trong các trang có `?v=<số>`; sửa JS/CSS thì tăng số này để trình duyệt tải bản mới |
 | Kiểm thử | `backend/tests/test_auth.py` |
 
+### 3.1b Đăng ký tài khoản người dùng (OTP giả lập) ✅
+
+| Tầng | File |
+|---|---|
+| API (công khai) | `POST /api/auth/register/otp` (SĐT + họ tên), `/register/verify` (OTP 6 số), `/register` (email, địa chỉ, mật khẩu) — `backend/controllers/auth_controller.py` |
+| Service | `backend/services/registration_service.py`: OTP hết hạn 5 phút, gửi lại sau 30 giây, sai 5 lần thì hủy; phiếu đăng ký dùng một lần; mật khẩu SHA-256 |
+| OTP giả lập | Không có cổng SMS: mã in ra terminal API và trả về để trang đăng ký hiện như một tin SMS giả |
+| Frontend | `frontend/register.html`, `js/register.js`; `login.html` có link "Đăng ký" và báo thành công sau khi đăng ký |
+| Kiểm thử | `backend/tests/test_registration.py` |
+
+### 3.1c Địa chỉ nhà ✅
+
+| Tầng | File |
+|---|---|
+| Bảng | `houses` (địa chỉ, không trùng không phân biệt hoa thường); `users.house_id`, `users.phone`, `devices.house_id`; luật lưu `"house_id"` trong `rules.json` |
+| Repository | `backend/repositories/house_repository.py` (`get_or_create` theo địa chỉ) |
+| Quy tắc | Tài khoản `user` bắt buộc có địa chỉ, `admin` thì không. Thiết bị bắt buộc có địa chỉ. Luật chỉ được dùng thiết bị cùng địa chỉ (`rule_service._validate`) |
+| API | `GET /api/admin/houses`; form thiết bị/tài khoản gửi `house_id` hoặc `new_address` (tạo địa chỉ mới) |
+| Frontend | Lọc + cột "Họ tên - Địa chỉ" (họ tên người dùng ở địa chỉ đó) ở trang Thiết bị, Luật tự động; cột SĐT + Địa chỉ ở trang Tài khoản; dropdown dùng chung `Admin.fillHouseSelect` / `Admin.readHouse` (`js/admin.js`) |
+| Giới hạn | Topic MQTT vẫn dùng chung `home/<phòng>/<mã>` cho mọi nhà: địa chỉ là thông tin quản lý, mã thiết bị không được trùng giữa các nhà |
+
+### 3.1d Người dùng kết nối thiết bị bằng mã ✅
+
+| Tầng | File |
+|---|---|
+| API (cần đăng nhập) | `GET /api/devices/mine`, `POST /api/devices/connect` `{"code": "light" \| "living/light"}` — `backend/controllers/user_device_controller.py` |
+| Service | `backend/services/user_device_service.py`: so mã với thiết bị **thuộc địa chỉ nhà của người dùng**; mã trùng nhiều phòng → yêu cầu `phòng/mã`; thiết bị bị khóa / đã kết nối → báo lỗi |
+| Bảng | `user_devices` (user_id, device_id, connected_at) |
+| Frontend | `frontend/index.html` (nút + hộp thoại ở trang Thiết bị), `js/device-connect.js`; trang admin → chi tiết thiết bị hiện "Người dùng đã kết nối" |
+| Kiểm thử | `backend/tests/test_user_devices.py` |
+
 ### 3.2 Dữ liệu demo (seed) ✅
 
 | Tầng | File |
@@ -145,7 +178,7 @@ Trang quản trị có sidebar giống trang người dùng; mỗi mục là m�
 | Mục sidebar (`#hash`) | API | Service → Repository | Frontend |
 |---|---|---|---|
 | Tổng quan `#/home` | `GET /api/admin/overview`, `/api/admin/devices`, `/api/alerts` | `repositories/admin_repository.py` | `js/admin-overview.js` |
-| Thiết bị `#/devices` | `GET/POST /api/admin/devices`, `PUT/DELETE /api/admin/devices/{id}`, `GET /api/admin/device-options` | `services/device_service.py` → `repositories/device_repository.py` | `js/admin-devices.js` |
+| Thiết bị `#/devices`, chi tiết `#/devices/<id>` | `GET/POST /api/admin/devices`, `GET/PUT/DELETE /api/admin/devices/{id}`, `PUT /api/admin/devices/{id}/active`, `GET /api/admin/device-options` | `services/device_service.py` (+ `device_lock_publisher.py`) → `repositories/device_repository.py` | `js/admin-devices.js` |
 | Luật tự động `#/rules` | `GET/POST /api/admin/rules`, `PUT/DELETE /api/admin/rules/{id}`, `PUT /api/admin/rules/{id}/enabled` | `services/rule_service.py` + `rule_validation.py` → `repositories/rule_repository.py` (rules.json) + `admin_repository.sync_rule_catalog` | `js/admin-rules.js` |
 | Thông báo `#/alerts` | `GET /api/alerts` (lịch sử, cần logger) + MQTT `home/_auto/notify/event` (trực tiếp) | `services/history_service.py` | `js/admin-overview.js` |
 | Quản lý người dùng / Tài khoản `#/accounts` | `GET /api/admin/users?q=&role=&status=`, `POST /api/admin/users`, `PUT/DELETE /api/admin/users/{id}` | `services/user_service.py` → `repositories/user_repository.py` | `js/admin-users.js` |
@@ -153,7 +186,11 @@ Trang quản trị có sidebar giống trang người dùng; mỗi mục là m�
 | Lịch sử đăng nhập `#/logins` | `GET /api/admin/login-history` | `repositories/admin_repository.py` | `js/admin-logins.js` |
 
 - Trang: `frontend/admin.html` (các trang có id `admin-<mục>` để không dính CSS của dashboard người dùng), `css/admin.css`, dùng chung `layout/sidebar.css`. Lỗi dữ liệu trả HTTP 400 kèm thông báo tiếng Việt, không tìm thấy trả 404.
-- **Thiết bị:** trạng thái Online/Offline/Chưa thấy lấy trực tiếp từ broker (subscribe `home/+/+/status` qua WebSocket).
+- **Thiết bị:** danh sách có tìm kiếm + lọc (phòng, loại, nguồn, trạng thái); viền tím nhạt = giả lập, cam = thiết bị thật.
+  Icon khiên mở trang chi tiết (mã, tên, loại, phòng, topic, người thêm, trạng thái) → nút Cập nhật để sửa.
+  **Khóa thiết bị** (`devices.is_active`): API phát `home/_admin/locked/state` (retained) → automation bỏ qua thiết bị đó
+  (`AutomationService.locked`), dashboard người dùng hiện "Đã khóa" và chặn điều khiển (`app.js → onLocked`).
+  Trạng thái kết nối Online/Offline/Chưa thấy lấy trực tiếp từ broker (subscribe `home/+/+/status` qua WebSocket).
   Thiết bị gửi status mà chưa đăng ký hiện ở bảng riêng để bấm “Đăng ký”. Không xóa / đổi mã được thiết bị đang được luật dùng.
 - **Luật:** ghi `backend/config/rules.json`; automation engine tự nạp lại khi file đổi (`AutomationService.reload_rules_if_changed`).
   Thiết bị trong luật phải đã đăng ký. Kiểm thử: `backend/tests/test_rules.py`.
@@ -180,7 +217,7 @@ Trang quản trị có sidebar giống trang người dùng; mỗi mục là m�
 | Service | `backend/services/automation_service.py` (chạy luật, kịch bản, chế độ nhà), `rule_helpers.py` (hàm thuần đánh giá điều kiện), `scene_validation.py` (kiểm tra kịch bản người dùng tạo) |
 | Cấu hình thực thi | `backend/config/rules.json` (admin sửa qua trang quản trị, engine tự nạp lại), `backend/config/scenes.json`; kịch bản người dùng thêm lưu ở `scenes.custom.json` (không commit) qua `backend/repositories/scene_repository.py` |
 | Topic điều khiển | `home/_auto/mode/set`, `home/_auto/scene/set`, `home/_auto/rule/set`; phát ra `home/_auto/engine/status`, `home/_auto/mode/state`, `home/_auto/notify/event` |
-| Frontend | `frontend/js/app.js` (màn hình Kịch bản, Luật), `js/scene-editor.js` (tạo kịch bản) |
+| Frontend | `frontend/js/app.js` (màn hình Luật; nút "Kịch bản nhanh" ở Trang chủ). Trang Kịch bản và form tạo kịch bản trên dashboard người dùng đã bỏ |
 | Kiểm thử | `backend/tests/test_scenes.py` |
 | Tài liệu | `docs/03_kich_ban.md`, `docs/04_luat_tu_dong.md`, README §6 |
 | Lưu ý | Mã kịch bản trong `seed.py` phải trùng `id` trong `scenes.json` |
@@ -191,7 +228,6 @@ Trang quản trị có sidebar giống trang người dùng; mỗi mục là m�
 |---|---|---|
 | Trang chủ `#/home` | `js/nav.js` (khung), `js/app.js` | `docs/01_trang_chu.md` |
 | Thiết bị `#/devices` | `js/app.js` (`renderDevice`, `renderRoomSummary`) | `docs/02_thiet_bi.md` |
-| Kịch bản `#/scenes` | `js/app.js`, `js/scene-editor.js` | `docs/03_kich_ban.md` |
 | Luật `#/rules` | `js/app.js` (`renderEngine`) | `docs/04_luat_tu_dong.md` |
 | Thông báo `#/alerts` | `js/app.js` | `docs/05_thong_bao.md` |
 | Lịch sử `#/history` | `js/history.js`, `css/history.css` | `docs/06_lich_su.md` |
@@ -264,8 +300,9 @@ Trang quản trị có sidebar giống trang người dùng; mỗi mục là m�
 
 | Nhóm | Bảng |
 |---|---|
-| Tài khoản & phiên | `roles`, `users` (có `deleted_at` cho xóa mềm), `sessions`, `login_history` |
-| Thiết bị | `rooms`, `device_types`, `devices` |
+| Tài khoản & phiên | `roles`, `users` (có `deleted_at` xóa mềm, `phone`, `house_id`), `sessions`, `login_history` |
+| Địa chỉ nhà | `houses`, `user_devices` (thiết bị người dùng đã kết nối) |
+| Thiết bị | `rooms`, `device_types`, `devices` (có `is_active`, `created_by`, `created_at`) |
 | Tự động hóa (danh mục) | `automation_rules`, `scenes` |
 
 **SQLite** (`backend/data/smarthome.db`, do logger tạo): bảng `messages` và các view `climate`, `energy`, `commands`

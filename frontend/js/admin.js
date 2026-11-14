@@ -68,6 +68,55 @@
     });
   }
 
+  // ---------------- địa chỉ nhà (dùng chung cho thiết bị, luật, tài khoản) ----------------
+  const NEW_HOUSE = "__new__";
+  let housesCache = [];
+  async function loadHouses() {
+    housesCache = await call("/api/admin/houses");
+    return housesCache;
+  }
+  const houses = () => housesCache;
+  /* Nhãn một nhà: "Họ tên người dùng - Địa chỉ" (nhà chưa có người dùng thì ghi rõ). */
+  const houseOwners = (h) => (h && h.owners) || "Chưa có người dùng";
+  const houseLabel = (id) => {
+    const h = housesCache.find((x) => x.id === id);
+    return h ? `${houseOwners(h)} - ${h.address}` : "Chưa gắn địa chỉ";
+  };
+  /* Ô bảng: họ tên đậm, địa chỉ nhỏ bên dưới. */
+  /* Lọc theo ô tìm "Họ tên - Địa chỉ": khớp họ tên người dùng hoặc địa chỉ (không phân biệt hoa thường). */
+  const houseMatches = (id, query) => {
+    const q = String(query || "").trim().toLowerCase();
+    return !q || houseLabel(id).toLowerCase().includes(q);
+  };
+  const houseCell = (id) => {
+    const h = housesCache.find((x) => x.id === id);
+    return h ? `<b class="owner">${esc(houseOwners(h))}</b><small>${esc(h.address)}</small>` : '<span class="muted">—</span>';
+  };
+
+  /* Đổ danh sách địa chỉ vào <select data-house-select>. allowNew: thêm mục "+ Địa chỉ mới…" (hiện ô nhập
+   * [data-house-new] cùng khung); empty: chữ cho mục rỗng (vd "Tất cả" khi lọc, "— Không —" cho admin). */
+  function fillHouseSelect(sel, { selected = null, allowNew = false, empty = null } = {}) {
+    sel.innerHTML = (empty !== null ? `<option value="">${esc(empty)}</option>` : "") +
+      housesCache.map((h) => `<option value="${h.id}">${esc(houseOwners(h))} - ${esc(h.address)}</option>`).join("") +
+      (allowNew ? `<option value="${NEW_HOUSE}">+ Địa chỉ mới…</option>` : "");
+    sel.value = selected === null || selected === undefined ? "" : String(selected);
+    if (!sel.value && empty === null && housesCache[0]) sel.value = String(housesCache[0].id);
+    const input = sel.parentElement.querySelector("[data-house-new]");
+    if (!input) return;
+    input.value = "";
+    input.hidden = sel.value !== NEW_HOUSE;
+    if (!sel.dataset.bound) {
+      sel.dataset.bound = "1";
+      sel.addEventListener("change", () => { input.hidden = sel.value !== NEW_HOUSE; if (!input.hidden) input.focus(); });
+    }
+  }
+
+  /* Đọc lựa chọn địa chỉ thành dữ liệu gửi API: {house_id} hoặc {new_address}. */
+  function readHouse(sel) {
+    if (sel.value === NEW_HOUSE) return { new_address: sel.parentElement.querySelector("[data-house-new]").value.trim() };
+    return { house_id: sel.value ? Number(sel.value) : null };
+  }
+
   // ---------------- sidebar ----------------
   const ICON = {
     home: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
@@ -140,14 +189,26 @@
     b.hidden = value === "" || value === null || value === undefined;
     b.textContent = value ?? "";
     b.className = "nav-badge" + (kind ? " " + kind : "");
+    if (name === "alerts") {                      // chuông trên thanh trên dùng chung số với mục Thông báo
+      const bell = $("bellBadge");
+      bell.hidden = b.hidden;
+      bell.textContent = b.textContent;
+      bell.className = "bell-badge" + (kind ? " " + kind : "");
+    }
   }
 
   // ---------------- điều hướng ----------------
+  /* #/<trang>/<phần con>, ví dụ #/devices/12 = trang chi tiết thiết bị 12.
+   * admin:page  chỉ phát khi đổi sang trang khác; admin:route phát mỗi lần #hash đổi (kể cả phần con). */
   let current = null;
   function route() {
-    const id = (location.hash || "#/home").replace(/^#\/?/, "").split("/")[0];
+    const [id, sub = null] = (location.hash || "#/home").replace(/^#\/?/, "").split("/");
     const page = PAGES.includes(id) ? id : "home";
-    if (page === current) return;
+    if (page === current) {
+      $("pageCrumb").textContent = TITLES[page];
+      emit("admin:route", { page, sub });
+      return;
+    }
     current = page;
     document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.id === "admin-" + page));
     sidebar.querySelectorAll(".nav-item").forEach((a) => {
@@ -158,7 +219,9 @@
     $("pageCrumb").textContent = TITLES[page];
     closeDrawer();
     emit("admin:page", page);
+    emit("admin:route", { page, sub });
   }
+  const setCrumb = (text) => { $("pageCrumb").textContent = text; };
   window.addEventListener("hashchange", route);
 
   // ---------------- broker (dùng chung) ----------------
@@ -209,7 +272,7 @@
     return "online";
   }
 
-  window.Admin = { call, esc, toast, fmtTime, setBadge, confirm: confirmBox, live, liveState, PREFIX, page: () => current };
+  window.Admin = { call, esc, toast, fmtTime, setBadge, setCrumb, confirm: confirmBox, loadHouses, houses, houseLabel, houseCell, houseMatches, fillHouseSelect, readHouse, live, liveState, PREFIX, page: () => current };
 
   // Chờ các file admin-*.js nạp xong (cuối <body>) rồi mới mở trang đầu và kết nối broker
   window.addEventListener("DOMContentLoaded", () => {
