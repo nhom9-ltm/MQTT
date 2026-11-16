@@ -97,6 +97,8 @@
     $("usersBody").innerHTML = total ? users.map((u) => `<tr class="${u.is_active ? "" : "disabled"}">
       <td>${esc(u.email)}${u.id === myId ? ' <span class="tag idle">Bạn</span>' : ""}</td>
       <td>${esc(u.full_name)}</td>
+      <td>${esc(u.phone || "—")}</td>
+      <td class="wrap addr">${u.role === "admin" ? '<span class="muted">—</span>' : esc(u.house_address || "Chưa có")}</td>
       <td><span class="tag ${u.role === "admin" ? "warn" : "idle"}">${esc(u.role_name)}</span></td>
       <td><span class="tag ${u.is_active ? "ok" : "bad"}">${u.is_active ? "Hoạt động" : "Khóa"}</span></td>
       <td>${esc(fmtTime(u.created_at))}</td>
@@ -109,7 +111,7 @@
         <button type="button" class="icon-btn danger" data-del="${u.id}" ${u.id === myId
           ? 'disabled title="Không thể xóa tài khoản đang đăng nhập"'
           : `title="Xóa" aria-label="Xóa ${esc(u.email)}"`}>${ICON_TRASH}</button>
-      </td></tr>`).join("") : `<tr><td colspan="7" class="muted">${filtersOn() ? "Không có tài khoản nào khớp bộ lọc." : "Chưa có tài khoản."}</td></tr>`;
+      </td></tr>`).join("") : `<tr><td colspan="9" class="muted">${filtersOn() ? "Không có tài khoản nào khớp bộ lọc." : "Chưa có tài khoản."}</td></tr>`;
   }
 
   const filtersOn = () => !!($("userSearch").value.trim() || $("userRoleFilter").value || $("userStatusFilter").value);
@@ -123,7 +125,7 @@
       users = await call("/api/admin/users" + (p.toString() ? "?" + p : ""));
       render();
     } catch (e) {
-      $("usersBody").innerHTML = `<tr><td colspan="7" class="muted">${esc(e.message)}</td></tr>`;
+      $("usersBody").innerHTML = `<tr><td colspan="9" class="muted">${esc(e.message)}</td></tr>`;
     }
   }
 
@@ -141,8 +143,11 @@
   const f = {
     dialog: $("userDialog"), title: $("userTitle"), error: $("userError"), email: $("userEmail"), name: $("userName"),
     role: $("userRole"), active: $("userActive"), password: $("userPassword"), pwLabel: $("userPasswordLabel"),
-    hint: $("userHint"),
+    hint: $("userHint"), phone: $("userPhone"), house: $("userHouse"),
   };
+  // Địa chỉ nhà chỉ dành cho tài khoản người dùng; admin thì ẩn ô này
+  const syncHouseField = () => { $("userHouseField").hidden = f.role.value === "admin"; };
+  f.role.addEventListener("change", syncHouseField);
 
   const pwToggle = $("btnToggleUserPw");
   function setPwVisible(show) {
@@ -163,6 +168,9 @@
     f.email.value = user?.email || "";
     f.name.value = user?.full_name || "";
     f.role.value = user?.role || "user";
+    f.phone.value = user?.phone || "";
+    Admin.fillHouseSelect(f.house, { selected: user?.house_id ?? null, allowNew: true });
+    syncHouseField();
     f.active.value = !user || user.is_active ? "1" : "0";
     f.role.disabled = f.active.disabled = !!self;          // không tự hạ quyền / tự khóa
     f.password.value = "";
@@ -178,7 +186,8 @@
   $("userForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const body = { email: f.email.value.trim(), full_name: f.name.value.trim(), role: f.role.value,
-                   is_active: f.active.value === "1" };
+                   is_active: f.active.value === "1", phone: f.phone.value.trim(),
+                   ...(f.role.value === "admin" ? {} : Admin.readHouse(f.house)) };
     if (f.password.value) body.password = f.password.value;
     $("userSubmit").disabled = true;
     try {
@@ -234,7 +243,7 @@
 
   document.addEventListener("admin:page", async (e) => {
     if (e.detail === "accounts") {
-      try { await loadRoles(); } catch { /* lỗi sẽ hiện ở bảng khi tải tài khoản */ }
+      try { await Promise.all([loadRoles(), Admin.loadHouses()]); } catch { /* lỗi sẽ hiện ở bảng khi tải tài khoản */ }
       loadUsers();
     }
     if (e.detail === "roles") showRoles();

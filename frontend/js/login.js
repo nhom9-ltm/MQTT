@@ -20,8 +20,18 @@
   });
 
   function showError(text) {
+    $("loginInfo").hidden = true;
     el.error.textContent = text;
     el.error.hidden = false;
+  }
+
+  // Vừa đăng ký xong (register.html chuyển sang với ?registered=<email>): điền sẵn email và báo thành công
+  const registered = new URLSearchParams(location.search).get("registered");
+  if (registered) {
+    el.email.value = registered;
+    $("loginInfo").textContent = `Đăng ký thành công tài khoản ${registered}. Hãy nhập mật khẩu để đăng nhập.`;
+    $("loginInfo").hidden = false;
+    el.password.focus();
   }
 
   el.form.addEventListener("submit", async (e) => {

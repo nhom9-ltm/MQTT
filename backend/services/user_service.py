@@ -8,6 +8,9 @@ Xóa tài khoản là xóa mềm (xem user_repository.soft_delete_user).
 """
 from __future__ import annotations
 
+import re
+
+from backend.repositories import house_repository
 from backend.repositories import user_repository as repo
 from backend.services.auth_service import GMAIL, sha256_hex
 
@@ -28,6 +31,7 @@ ROLE_PERMISSIONS = {
     ],
 }
 MIN_PASSWORD = 6
+PHONE_RE = re.compile(r"0\d{9}")           # SĐT Việt Nam 10 số, bắt đầu bằng 0
 
 
 class UserError(ValueError):
@@ -36,6 +40,35 @@ class UserError(ValueError):
 
 class UserNotFound(LookupError):
     pass
+
+
+def clean_phone(value) -> str | None:
+    phone = re.sub(r"[\s.-]", "", str(value or ""))
+    if not phone:
+        return None
+    if phone.startswith("+84"):
+        phone = "0" + phone[3:]
+    if not PHONE_RE.fullmatch(phone):
+        raise UserError("Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0 (vd 0901234567)")
+    return phone
+
+
+def resolve_house(data: dict, role: str) -> int | None:
+    """Tài khoản user phải có địa chỉ nhà (chọn có sẵn hoặc nhập mới); tài khoản admin không gắn nhà."""
+    if role == "admin":
+        return None
+    address = house_repository.normalize(data.get("new_address", ""))
+    if address:
+        if not 5 <= len(address) <= 200:
+            raise UserError("Địa chỉ nhà phải từ 5 đến 200 ký tự")
+        return house_repository.get_or_create(address)
+    try:
+        house_id = int(data.get("house_id"))
+    except (TypeError, ValueError):
+        raise UserError("Tài khoản người dùng cần có địa chỉ nhà") from None
+    if house_id not in house_repository.ids():
+        raise UserError("Địa chỉ nhà không tồn tại")
+    return house_id
 
 
 def _clean(data: dict, *, creating: bool) -> tuple[str, str, str, bool, str | None]:
@@ -63,9 +96,13 @@ def list_users(q: str = "", role: str = "", status: str = "") -> list[dict]:
 
 def create(data: dict) -> dict:
     email, full_name, role, active, pw_hash = _clean(data, creating=True)
+    phone = clean_phone(data.get("phone"))
     if repo.email_taken(email):
         raise UserError(f"Email {email} đã có tài khoản")
-    return repo.get_user(repo.create_user(email, pw_hash, full_name, role, active))
+    if phone and repo.phone_taken(phone):
+        raise UserError(f"Số điện thoại {phone} đã được dùng cho tài khoản khác")
+    house_id = resolve_house(data, role)
+    return repo.get_user(repo.create_user(email, pw_hash, full_name, role, active, phone, house_id))
 
 
 def update(user_id: int, data: dict, current_admin: dict) -> dict:
@@ -73,6 +110,10 @@ def update(user_id: int, data: dict, current_admin: dict) -> dict:
     if not user:
         raise UserNotFound("Không tìm thấy tài khoản")
     email, full_name, role, active, pw_hash = _clean(data, creating=False)
+    phone = clean_phone(data.get("phone", user["phone"]))
+    if phone and repo.phone_taken(phone, except_id=user_id):
+        raise UserError(f"Số điện thoại {phone} đã được dùng cho tài khoản khác")
+    house_id = resolve_house({"house_id": user["house_id"], **data}, role)
     if repo.email_taken(email, except_id=user_id):
         raise UserError(f"Email {email} đã có tài khoản")
     if email != user["email"] and repo.deleted_id_by_email(email):
@@ -82,7 +123,7 @@ def update(user_id: int, data: dict, current_admin: dict) -> dict:
     losing_admin = user["role"] == "admin" and user["is_active"] and (role != "admin" or not active)
     if losing_admin and repo.count_active_admins(except_id=user_id) == 0:
         raise UserError("Phải còn ít nhất một quản trị viên đang hoạt động")
-    repo.update_user(user_id, email, full_name, role, active, pw_hash)
+    repo.update_user(user_id, email, full_name, role, active, pw_hash, phone, house_id)
     return repo.get_user(user_id)
 
 
@@ -95,7 +136,8 @@ def set_active(user_id: int, active: bool, current_admin: dict) -> dict:
         raise UserError("Không thể tự khóa tài khoản đang đăng nhập")
     if user["role"] == "admin" and user["is_active"] and not active and repo.count_active_admins(except_id=user_id) == 0:
         raise UserError("Phải còn ít nhất một quản trị viên đang hoạt động")
-    repo.update_user(user_id, user["email"], user["full_name"], user["role"], active, None)
+    repo.update_user(user_id, user["email"], user["full_name"], user["role"], active, None,
+                     user["phone"], user["house_id"])
     return repo.get_user(user_id)
 
 

@@ -52,6 +52,7 @@ class AutomationController:
             (f"{svc.p}/+/+/state", 1),
             (f"{svc.p}/_auto/+/set", 1),
             (svc.t_mode, 1),
+            (svc.t_locked, 1),
         ])
         svc.begin_warmup()
 

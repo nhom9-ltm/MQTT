@@ -55,7 +55,25 @@ class House:
                 continue
             for cls, dev_id, name, opts in items:
                 self.devices.append(cls(self, room, room_name, dev_id, name, **opts))
+        for spec in getattr(args, "extra", None) or []:
+            self.devices.append(self.extra_device(spec))
         self._index = {(d.room, d.TYPE): d for d in reversed(self.devices)}
+
+    EXTRA_TYPES = {cls.TYPE: cls for cls in (Light, Fan, AirCon, Curtain, Plug, Lock, Door, Motion, Gas, Climate)}
+
+    def extra_device(self, spec: str) -> Device:
+        """--extra "phòng/mã:loại:Tên" → một thiết bị giả lập thêm, vd "living/a1:fan:Quạt trần"."""
+        try:
+            key, type_, name = spec.split(":", 2)
+            room, dev_id = key.split("/")
+        except ValueError:
+            raise SystemExit(f'--extra sai định dạng: {spec!r} (đúng: "phòng/mã:loại:Tên", vd "living/a1:fan:Quạt trần")')
+        cls = self.EXTRA_TYPES.get(type_.strip())
+        if not cls:
+            raise SystemExit(f"--extra: loại “{type_}” không hỗ trợ, chọn một trong: {', '.join(sorted(self.EXTRA_TYPES))}")
+        room_name = next((rn for r, rn, _ in HOUSE if r == room), room)
+        print(f"Giả lập thêm: {room}/{dev_id} ({type_}) “{name.strip()}”")
+        return cls(self, room.strip(), room_name, dev_id.strip(), name.strip())
 
     def get(self, room: str, type_: str) -> Device | None:
         return self._index.get((room, type_))

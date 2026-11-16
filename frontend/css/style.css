@@ -282,3 +282,7 @@ input[type="range"] { width: 100%; accent-color: var(--c, var(--accent)); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Thiết bị bị quản trị viên khóa (js/app.js → onLocked) */
+.dev.locked { opacity: .5; filter: grayscale(.6); }
+.badge.locked { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }

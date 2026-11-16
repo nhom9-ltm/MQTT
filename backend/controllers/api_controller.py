@@ -2,7 +2,7 @@
 Controller HTTP của API lịch sử — nhận request, gọi history_service, trả JSON cho frontend/history.html.
 
     pip install -r backend/requirements-extra.txt
-    uvicorn backend.controllers.api_controller:app --port 8000        # chạy từ thư mục gốc repo
+    uvicorn backend.controllers.api_controller:app --port 8011        # chạy từ thư mục gốc repo
     python backend/run_api.py                                         # tương đương
     HISTORY_DB=backend/data/demo_history.db python backend/run_api.py      # dùng dữ liệu mẫu
 """
@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from backend.controllers.admin_controller import router as admin_router
 from backend.controllers.auth_controller import router as auth_router
+from backend.controllers.user_device_controller import router as user_device_router
 from backend.repositories.history_repository import DatabaseUnavailable
 from backend.services import history_service
 
@@ -21,6 +22,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "P
                    allow_headers=["Authorization", "Content-Type"])
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(user_device_router)
 
 
 @app.exception_handler(DatabaseUnavailable)

@@ -6,9 +6,9 @@
   <title>Đăng nhập — Nhà thông minh</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=9">
-  <link rel="stylesheet" href="css/auth.css?v=9">
-  <script src="js/session.js?v=9"></script>
+  <link rel="stylesheet" href="css/style.css?v=18">
+  <link rel="stylesheet" href="css/auth.css?v=18">
+  <script src="js/session.js?v=18"></script>
 </head>
 <body class="login-page">
   <main class="login-card">
@@ -23,6 +23,7 @@
     </div>
 
     <form class="login-form" id="loginForm" novalidate>
+      <p class="form-msg ok" id="loginInfo" role="status" hidden></p>
       <p class="login-error" id="loginError" role="alert" hidden></p>
       <div class="field">
         <label for="email">Email</label>
@@ -40,8 +41,10 @@
       </div>
       <button type="submit" id="btnLogin" class="btn primary">Đăng nhập</button>
     </form>
+
+    <p class="muted login-foot">Chưa có tài khoản? <a href="register.html">Đăng ký</a></p>
   </main>
 
-  <script src="js/login.js?v=9"></script>
+  <script src="js/login.js?v=18"></script>
 </body>
 </html>

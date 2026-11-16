@@ -4,21 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nhà thông minh — MQTT</title>
-  <script src="js/session.js?v=9" data-guard="user"></script>
+  <script src="js/session.js?v=22" data-guard="user"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=9">
-  <link rel="stylesheet" href="layout/layout.css?v=9">
-  <link rel="stylesheet" href="layout/sidebar.css?v=9">
-  <link rel="stylesheet" href="css/history.css?v=9">
-  <link rel="stylesheet" href="css/scene-editor.css?v=9">
-  <link rel="stylesheet" href="css/auth.css?v=9">
+  <link rel="stylesheet" href="css/style.css?v=22">
+  <link rel="stylesheet" href="layout/layout.css?v=22">
+  <link rel="stylesheet" href="layout/sidebar.css?v=22">
+  <link rel="stylesheet" href="css/history.css?v=22">
+  <link rel="stylesheet" href="css/auth.css?v=22">
   <script>
     /* Chọn sẵn trang theo #hash TRƯỚC lần vẽ đầu tiên, để không nháy trang chủ rồi mới nhảy sang trang khác.
        nav.js sẽ gỡ thuộc tính này khi router đã sẵn sàng. */
     (function () {
       var r = location.hash.replace(/^#\/?/, "").split("/")[0] || "home";
-      var ok = { home: 1, devices: 1, scenes: 1, rules: 1, alerts: 1, history: 1, log: 1 };
+      var ok = { home: 1, devices: 1, rules: 1, alerts: 1, history: 1, log: 1 };
       document.documentElement.setAttribute("data-route", ok[r] ? r : "home");
     })();
   </script>
@@ -31,7 +30,7 @@
   <!-- Sidebar điều hướng bên trái (Prompt 01, 02) -->
   <aside id="sidebar"></aside>
   <!-- nav.js đặt NGAY SAU sidebar để dựng menu trước lần vẽ đầu tiên (không bị trống rồi mới hiện) -->
-  <script src="js/nav.js?v=9"></script>
+  <script src="js/nav.js?v=22"></script>
 
   <!-- Lớp phủ mờ đóng menu trên mobile -->
   <div class="drawer-scrim" id="drawerScrim"></div>
@@ -162,6 +161,7 @@
         <div class="sec-head">
           <div class="tabs" id="roomTabs" role="tablist"><button class="on" data-room="all">Tất cả</button></div>
           <span class="hint">Tự phát hiện thiết bị qua wildcard <code id="wcHint">home/+/+/+</code></span>
+          <button type="button" class="btn primary sm" id="btnConnectDevice">＋ Kết nối thiết bị</button>
         </div>
         <div id="rooms">
           <div class="empty" id="emptyDevices">
@@ -170,19 +170,34 @@
         </div>
       </section>
 
-      <!-- TRANG 3: KỊCH BẢN (Prompt 03) — phần Chế độ đã chuyển sang Trang chủ -->
-      <section class="page" id="page-scenes">
-        <div class="panel scene-panel">
-          <div class="panel-head">
-            <h3>Kịch bản</h3>
-            <div class="head-actions">
-              <span class="hint">publish <code id="sceneTopic">home/_auto/scene/set</code></span>
-              <button type="button" class="btn primary sm" id="btnAddScene" title="Tạo kịch bản riêng gồm nhiều bước điều khiển">＋ Thêm kịch bản</button>
-            </div>
+      <!-- Hộp thoại kết nối thiết bị bằng mã (js/device-connect.js) -->
+      <dialog class="connect-dialog" id="connectDialog" aria-labelledby="connectTitle">
+        <form id="connectForm" novalidate>
+          <h3 id="connectTitle">Kết nối thiết bị</h3>
+          <p class="muted connect-note">Nhập mã thiết bị do quản trị viên cấp, vd <code>light</code> hoặc đầy đủ
+            <code>living/light</code>. Chỉ kết nối được thiết bị thuộc địa chỉ nhà của bạn.</p>
+          <p class="form-msg" id="connectMsg" role="status" aria-live="polite" hidden></p>
+          <div class="field">
+            <label for="connectCode">Mã thiết bị</label>
+            <input id="connectCode" spellcheck="false" autocomplete="off" placeholder="vd: living/light">
           </div>
-          <div class="scenes" id="scenes"><span class="muted">Chạy <code>python backend/run_automation.py</code> để có kịch bản.</span></div>
-        </div>
-      </section>
+          <div class="connect-actions">
+            <button type="button" class="btn ghost" id="btnConnectClose">Đóng</button>
+            <button type="submit" class="btn primary" id="btnConnectSubmit">Kết nối</button>
+          </div>
+          <div class="connected-list">
+            <h4>Thiết bị đã kết nối <span class="muted" id="connectedCount"></span></h4>
+            <ul id="connectedList"><li class="muted">Đang tải…</li></ul>
+          </div>
+        </form>
+      </dialog>
+
+      <!-- Đã bỏ trang Kịch bản. Giữ khung ẩn này vì app.js vẽ nút kịch bản vào #scenes và nav.js sao chép sang
+           khung "Kịch bản nhanh" ở Trang chủ. -->
+      <div hidden aria-hidden="true">
+        <code id="sceneTopic">home/_auto/scene/set</code>
+        <div class="scenes" id="scenes"></div>
+      </div>
 
       <!-- TRANG 4: LUẬT TỰ ĐỘNG (Prompt 04) -->
       <section class="page" id="page-rules">
@@ -269,38 +284,6 @@
         </div>
       </section>
 
-      <!-- Hộp thoại thêm kịch bản (js/scene-editor.js dựng các bước bên trong) -->
-      <dialog id="sceneDialog" class="scene-dialog" aria-labelledby="sceneDialogTitle">
-        <form id="sceneForm" autocomplete="off" novalidate>
-          <header class="sd-head">
-            <h3 id="sceneDialogTitle">Thêm kịch bản</h3>
-            <button type="button" class="btn ghost sm" data-sd-close aria-label="Đóng">✕</button>
-          </header>
-          <div class="sd-body">
-            <div class="sd-name-row">
-              <label class="sd-field sd-grow">Tên kịch bản
-                <input id="sceneName" maxlength="40" placeholder="Ví dụ: Đọc sách">
-              </label>
-              <label class="sd-field sd-icon">Biểu tượng
-                <input id="sceneIcon" maxlength="4" placeholder="▶" list="sceneIcons">
-              </label>
-              <datalist id="sceneIcons">
-                <option value="📖"><option value="🍽️"><option value="🎵"><option value="🧹"><option value="🌅"><option value="🌃"><option value="🏃"><option value="💡">
-              </datalist>
-            </div>
-            <div class="sd-steps-head">
-              <h4>Các bước (chạy lần lượt từ trên xuống)</h4>
-              <button type="button" class="btn ghost sm" id="sceneAddStep">＋ Thêm bước</button>
-            </div>
-            <ol id="sceneSteps" class="sd-steps"></ol>
-            <p class="sd-err" id="sceneErr" role="alert" hidden></p>
-          </div>
-          <footer class="sd-foot">
-            <button type="button" class="btn ghost" data-sd-close>Hủy</button>
-            <button type="submit" class="btn primary" id="sceneSave">Lưu kịch bản</button>
-          </footer>
-        </form>
-      </dialog>
 
       <footer class="foot">
         Dashboard client có LWT riêng: <code id="dashWill">home/_dashboard/…/status</code> · keep-alive <span id="kaInfo">30</span>s ·
@@ -310,11 +293,11 @@
   </div>
 </div>
 
-<script src="js/auth.js?v=9"></script>
-<script src="mock/demo.js?v=9"></script>
-<script src="js/app.js?v=9"></script>
-<script src="js/history.js?v=9"></script>
-<script src="js/scene-editor.js?v=9"></script>
-<script src="js/nav.js?v=9"></script>
+<script src="js/auth.js?v=22"></script>
+<script src="mock/demo.js?v=22"></script>
+<script src="js/app.js?v=22"></script>
+<script src="js/history.js?v=22"></script>
+<script src="js/device-connect.js?v=22"></script>
+<script src="js/nav.js?v=22"></script>
 </body>
 </html>

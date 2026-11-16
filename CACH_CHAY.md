@@ -61,7 +61,7 @@ python backend/run_automation.py
 # 5 — (tùy chọn) Logger ghi lịch sử vào backend/data/smarthome.db
 python backend/run_logger.py
 
-# 6 — API đăng nhập, trang quản trị và trang Lịch sử (cổng 8001)
+# 6 — API đăng nhập, trang quản trị và trang Lịch sử (cổng 8011)
 python backend/run_api.py
 ```
 
@@ -78,6 +78,14 @@ Mỗi vai trò chỉ có một trang: admin mở `index.html` sẽ bị đưa v�
 
 Tài khoản, phòng, thiết bị và kịch bản ban đầu khai báo trong `backend/database/seed.py`; luật ban đầu nằm trong
 `backend/config/rules.json`. `run_api.py` tự nạp seed mỗi lần khởi động (thiết bị chỉ nạp lần đầu, sau đó do admin quản lý).
+
+**Thiết bị quản trị viên mới tạo nhưng chưa có phần cứng:** cho simulator giả lập thêm bằng `--extra "phòng/mã:loại:Tên"`
+(lặp lại được; loại: light, fan, ac, curtain, plug, lock, door, motion, gas, climate), ví dụ:
+
+```powershell
+python backend/run_simulator.py --extra "living/a1:fan:Quạt trần"                  # chạy chung với 20 thiết bị mẫu
+python backend/run_simulator.py --rooms none --extra "living/a1:fan:Quạt trần"     # chỉ riêng thiết bị này (terminal riêng)
+```
 
 **Thiết bị thật (ESP32):** nạp firmware trong `firmware/esp32/`, trỏ `MQTT_HOST` về IP máy chạy broker. Khi ESP32 kết nối,
 tab **Thiết bị** trên trang quản trị hiện nó ở bảng "đang kết nối nhưng chưa đăng ký" → bấm **Đăng ký**.

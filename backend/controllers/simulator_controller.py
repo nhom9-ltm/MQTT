@@ -30,6 +30,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-random", action="store_true", help="tắt chuyển động ngẫu nhiên (chỉ khi bấm Giả lập)")
     p.add_argument("--quiet", action="store_true", help="không in mỗi lần đổi trạng thái")
     p.add_argument("--verbose", action="store_true", help="in cả số liệu định kỳ")
+    p.add_argument("--extra", action="append", default=[], metavar="PHÒNG/MÃ:LOẠI:TÊN",
+                   help='giả lập thêm thiết bị (lặp lại được), vd --extra "living/a1:fan:Quạt trần". '
+                        "Dùng cho thiết bị quản trị viên mới tạo mà chưa có phần cứng thật")
     return p
 
 

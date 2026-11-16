@@ -71,6 +71,11 @@
     power: [],                // [{x, y}] tổng công suất theo thời gian
     colorIdx: 0,
     clientId: "dash-" + Math.random().toString(16).slice(2, 8),
+    locked: new Set(),        // thiết bị bị quản trị viên khóa (home/_admin/locked/state, retained)
+    // Thiết bị người dùng đã kết nối vào tài khoản (GET /api/devices/mine). null = chưa lấy được → hiện mọi thiết bị.
+    // Ngoài chế độ Demo, dashboard chỉ hiện các thiết bị này; thiết bị chưa gửi dữ liệu lên broker vẫn có thẻ ("Chưa online").
+    allowed: null,
+    registry: new Map(),      // "phòng/mã" -> thông tin thiết bị đã kết nối (tên, loại, phòng)
   };
 
   el.url.value = DEFAULT_URL;
@@ -108,6 +113,7 @@
     disconnectAll();
     state.prefix = el.prefix.value.trim() || "home";
     resetAll();
+    applyAllowed();                 // vẽ sẵn thẻ các thiết bị đã kết nối vào tài khoản (kể cả chưa online)
 
     const willTopic = `${state.prefix}/_dashboard/${state.clientId}/status`;
     setPill(el.pill, "wait", "Đang kết nối…");
@@ -160,6 +166,7 @@
   }
 
   function command(dev, payload) {
+    if (state.locked.has(dev.key)) { addAlert("warn", `${dev.name} đang bị quản trị viên khóa — không điều khiển được`); return; }
     if (!send(`${state.prefix}/${dev.room}/${dev.id}/set`, payload)) return;
     if (payload.action !== "crash") { dev.pending = Date.now(); renderDevice(dev); }
   }
@@ -182,7 +189,9 @@
     if (text !== "") { try { data = JSON.parse(text); } catch { return; } }
 
     if (room === "_auto") return onAuto(id, kind, data || {}, meta);
-    if (room.startsWith("_")) return;                    // client hệ thống khác (dashboard)
+    if (room === "_admin" && id === "locked" && kind === "state") return onLocked(data);
+    if (!state.demo && state.allowed && !state.allowed.has(`${room}/${id}`)) return;   // chưa kết nối vào tài khoản (và topic hệ thống "_…")
+    if (room.startsWith("_")) return;                   // client hệ thống khác (dashboard)
 
     if (kind === "status") {
       if (data === null) return removeDevice(`${room}/${id}`);   // retained bị xóa
@@ -195,12 +204,59 @@
     }
   }
 
+  /* Quản trị viên khóa/mở khóa thiết bị: vẽ lại thẻ để hiện "Đã khóa" và chặn điều khiển. */
+  function onLocked(data) {
+    state.locked = new Set(data && Array.isArray(data.devices) ? data.devices : []);
+    for (const d of state.devices.values()) renderDevice(d);
+  }
+
   function handleSys(topic, text) {
     if (topic.endsWith("clients/connected")) el.kClients.textContent = text;
   }
 
+  /* ---------- thiết bị đã kết nối vào tài khoản ---------- */
+  const EMPTY_DEFAULT = el.empty.innerHTML;
+  const EMPTY_MINE = 'Chưa có thiết bị nào được kết nối vào tài khoản. Bấm <b>＋ Kết nối thiết bị</b> và nhập mã thiết bị do quản trị viên cấp.';
+
+  /* Thẻ cho thiết bị đã kết nối nhưng chưa gửi status lên broker: hiện "Chưa online", điều khiển bị khóa. */
+  function addRegistryCard(info) {
+    const [room, id] = info.key.split("/");
+    if (state.devices.has(info.key)) return;
+    const dev = upsertDevice(room, id);
+    Object.assign(dev, { type: info.type, name: info.name, sim: !!info.is_simulated, status: "offline", reason: "never",
+                         registry: true });
+    ensureRoom(room, info.room_name);
+    renderDevice(dev);
+  }
+
+  function applyAllowed() {
+    if (state.demo || !state.allowed) { el.empty.innerHTML = EMPTY_DEFAULT; return; }
+    el.empty.innerHTML = EMPTY_MINE;
+    for (const key of [...state.devices.keys()]) if (!state.allowed.has(key)) removeDevice(key);
+    for (const info of state.registry.values()) addRegistryCard(info);
+    renderTabs(); updateKpis();
+  }
+
+  async function loadMyDevices() {
+    if (!window.Session || !Session.token()) return;
+    try {
+      const r = await Session.api("/api/devices/mine");
+      if (!r.ok) return;                                   // API lỗi: giữ nguyên (hiện mọi thiết bị)
+      const list = await r.json();
+      state.allowed = new Set(list.map((d) => d.key));
+      state.registry = new Map(list.map((d) => [d.key, d]));
+      applyAllowed();
+      // Subscribe lại để broker gửi lại status/state retained của thiết bị vừa kết nối (trước đó đã bị bỏ qua)
+      if (state.client && state.client.connected) state.client.subscribe(`${state.prefix}/+/+/+`, { qos: 1 });
+    } catch { /* API chưa chạy: hiện mọi thiết bị trên broker như trước */ }
+  }
+
   function onStatus(room, id, d, meta) {
     const dev = upsertDevice(room, id);
+    if (dev.registry && d.type) {                          // thiết bị thật vừa online: dựng lại thẻ theo khả năng (caps) nó báo
+      dev.registry = false;
+      if (dev.el) dev.el.dataset.type = "";
+    }
     const prev = dev.status;
     dev.status = d.state || "unknown";
     dev.reason = d.reason || null;
@@ -462,6 +518,7 @@
       case "ac": return s.on ? `${AC_MODE[s.mode] || s.mode} · ${s.target}°C` : "Tắt";
       case "curtain":
         if (s.moving) return `Đang chuyển động… ${s.position}%`;
+        if (s.position == null) return "—";                 // thiết bị chưa gửi trạng thái
         return s.position === 0 ? "Đóng" : s.position === 100 ? "Mở hoàn toàn" : `Mở ${s.position}%`;
       case "lock": return s.locked ? "Đã khóa" : "Đang mở khóa";
       case "plug": return s.on ? "Đang cấp điện" : "Tắt";
@@ -491,9 +548,10 @@
     n.querySelector(".dev-name").textContent = dev.name;
     n.querySelector(".dev-sub").textContent = subText(dev);
     const badge = n.querySelector(".badge");
-    badge.className = "badge " + st;
-    badge.textContent = st === "offline"
-      ? (dev.reason === "lwt" ? "Offline · LWT" : dev.status === "offline" ? "Offline" : "Bo mạch offline")
+    const locked = state.locked.has(dev.key);
+    badge.className = "badge " + (locked ? "locked" : st);
+    badge.textContent = locked ? "Đã khóa" : st === "offline"
+      ? (dev.reason === "never" ? "Chưa online" : dev.reason === "lwt" ? "Offline · LWT" : dev.status === "offline" ? "Offline" : "Bo mạch offline")
       : st === "online" ? "Online" : "Chưa rõ";
 
     const active = { light: s.on, fan: s.on, ac: s.on, plug: s.on, curtain: s.position > 0,
@@ -502,7 +560,9 @@
     n.classList.toggle("alarm", dev.type === "gas" && !!s.alarm && st !== "offline");
     n.classList.toggle("offline", st === "offline");
     n.classList.toggle("pending", !!dev.pending);
-    $$("button, input", n).forEach((b) => (b.disabled = st === "offline"));
+    n.classList.toggle("locked", locked);
+    n.title = locked ? "Thiết bị đang bị quản trị viên khóa" : "";
+    $$("button, input", n).forEach((b) => (b.disabled = st === "offline" || locked));
     const sw = n.querySelector(".sw");
     if (sw) sw.setAttribute("aria-checked", String(!!s.on));
 
@@ -841,11 +901,14 @@
       id: d.id, name: d.name, type: d.type, online: effStatus(d) !== "offline" })),
     scenes: () => (state.engine && state.engine.scenes) || [],
     engineOnline: () => engineOnline(),
+    // js/device-connect.js gọi sau khi kết nối thành công để thẻ thiết bị mới hiện ngay
+    refreshMyDevices: () => loadMyDevices(),
   };
 
   resetAll();
   // Bản công khai trên GitHub Pages không có broker riêng -> tự chạy demo (trừ khi truyền ?broker=...)
   const PUBLIC_DEMO = location.hostname.endsWith("github.io") && !qs.get("broker");
   if (qs.get("demo") === "1" || PUBLIC_DEMO) startDemo();
-  else if (typeof mqtt !== "undefined") connect();
+  // Lấy danh sách thiết bị đã kết nối trước, rồi mới nghe broker (tránh hiện thoáng thiết bị không thuộc tài khoản)
+  else if (typeof mqtt !== "undefined") loadMyDevices().finally(connect);
 })();
