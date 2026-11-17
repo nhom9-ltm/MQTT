@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-USERS = ["dashboard", "automation", "logger", "simulator", "esp32-01", "notifier"]
+USERS = ["dashboard", "automation", "logger", "simulator", "esp32-01", "notifier", "api"]
 
 
 def main():

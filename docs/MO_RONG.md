@@ -1,6 +1,6 @@
 # Phần mở rộng
 
-Ba tính năng bổ sung, **không thay đổi hành vi mặc định** của dự án (broker vẫn mở, dashboard và
+Các tính năng bổ sung, **không thay đổi hành vi mặc định** của dự án (broker vẫn mở, dashboard và
 các script cũ chạy như trước). Làm theo thứ tự:
 
 | # | Tính năng | File mới | Chạy |
@@ -8,6 +8,7 @@ các script cũ chạy như trước). Làm theo thứ tự:
 | 1 | [Thông báo Telegram / Email](#1-thông-báo-telegram--email) | `backend/controllers/notifier_controller.py`, `backend/services/notification_service.py`, `backend/services/notify_channels.py` | `python backend/run_notifier.py` |
 | 2 | [Xác thực + ACL](#2-xác-thực--acl) | `infra/broker/mosquitto.secure.conf`, `docker-compose.secure.yml`, `infra/broker/setup_auth.py`, `infra/broker/test_acl.py`, `frontend/js/auth.js` | xem bên dưới |
 | 3 | [Lịch sử + biểu đồ](#3-lịch-sử--biểu-đồ) | `backend/controllers/api_controller.py`, `backend/services/history_service.py`, `backend/repositories/history_repository.py`, `backend/database/seed_history.py`, `frontend/index.html` (trang `#/history`), `frontend/js/history.js`, `frontend/css/history.css` | `python backend/run_api.py` |
+| 4 | [Tiền điện + ngân sách](#4-tiền-điện--ngân-sách) | `backend/config/energy.json`, `backend/services/energy_service.py`, `backend/services/energy_watcher.py`, `backend/common/mqtt_publish.py`, `backend/tests/test_energy.py` | `python backend/run_api.py` |
 
 Thay đổi nhỏ ở file cũ (chỉ thêm, không sửa): `infra/broker/acl.conf` (+ user `notifier`), `.gitignore`
 (+ `infra/broker/credentials.env`), `frontend/index.html` (+ nút **Lịch sử**, + thẻ `<script src="js/auth.js">`).
@@ -155,4 +156,72 @@ $env:HISTORY_DB="backend/data/demo_history.db"; python backend/run_api.py
 - Điện năng là **ước tính**: lấy công suất trung bình từng giờ của mỗi thiết bị rồi cộng lại, không phải số đo từ đồng hồ.
 - Trang lịch sử cần API chạy, nên **không** có trên bản GitHub Pages (Demo). Trên Pages, nút Lịch sử sẽ báo lỗi kết nối API.
 - API chỉ có `GET`, mở CORS `*`, mở DB `mode=ro`. Nếu đưa ra ngoài Internet cần thêm xác thực riêng.
-- Khi chạy với bảo mật bật, logger vẫn ghi DB bình thường; API không đi qua broker nên không cần tài khoản MQTT.
+- Khi chạy với bảo mật bật, logger vẫn ghi DB bình thường. API có publish lên broker (danh sách thiết bị bị khóa,
+  cảnh báo tiền điện) nên cần tài khoản `api`: `$env:MQTT_USER="api"; $env:MQTT_PASS="<PASS_API>"` trước khi chạy.
+
+---
+
+## 4. Tiền điện + ngân sách
+
+Trang **Lịch sử** có thêm khung **Tiền điện theo tháng**: tính tiền theo **biểu giá bậc thang EVN** (gồm VAT) từ
+kWh mà logger ghi được, dự báo tiền cả tháng và so với ngân sách. API còn chạy nền một luồng kiểm tra ngân sách,
+phát cảnh báo lên `home/_auto/notify/event` (cùng topic với automation), nên notifier gửi Telegram/Email, logger
+ghi lại và dashboard hiện trong mục Thông báo mà không phải sửa các thành phần đó.
+
+```
+logger ──▶ smarthome.db ──▶ API (energy_service) ──▶ GET /api/energy/report ──▶ trang Lịch sử
+                                │
+                                └─ energy_watcher (10 phút/lần) ──publish──▶ home/_auto/notify/event ──▶ notifier, dashboard, logger
+```
+
+### Cấu hình: `backend/config/energy.json`
+| Khóa | Ý nghĩa |
+|---|---|
+| `tiers` | Các bậc giá `{up_to, price}` (đồng/kWh, chưa VAT); bậc cuối `up_to: null`. Mặc định: giá EVN từ 10/5/2025 |
+| `vat` | Thuế VAT, mặc định `0.08` |
+| `budget_vnd` | Ngân sách tiền điện mỗi tháng (đồng); `0` = tắt ngân sách và cảnh báo |
+| `warn_ratio` | Tỉ lệ ngân sách bắt đầu cảnh báo, mặc định `0.8` (80%) |
+
+File được đọc lại mỗi lần gọi API, sửa xong không cần khởi động lại.
+
+### Cách tính
+- **kWh**: giống phần Lịch sử, công suất trung bình từng giờ của mỗi thiết bị cộng lại (ước tính, không phải đồng hồ điện).
+- **Tiền điện** tính trên **tổng kWh cả nhà** theo bậc thang, rồi chia cho từng thiết bị theo tỉ lệ kWh (vì giá bậc
+  thang không tuyến tính nên không tính riêng từng thiết bị được).
+- **Dự báo cuối tháng** = kWh đã có ÷ thời gian đã có dữ liệu × độ dài cả tháng (cần ít nhất 1 giờ dữ liệu).
+  Logger chạy từ giữa tháng vẫn dự báo được.
+
+### Cảnh báo
+| Trạng thái | Khi nào | Level phát ra |
+|---|---|---|
+| `warn` | Tiền đã tới `warn_ratio` × ngân sách, **hoặc** dự báo cuối tháng sẽ vượt | `warn` |
+| `over` | Tiền thực tế đã vượt ngân sách | `critical` → notifier mặc định gửi ra điện thoại |
+
+Mỗi mức chỉ báo **một lần mỗi tháng**; đã báo gì được lưu ở `backend/data/energy_alerts.json` (đã `.gitignore`),
+nên khởi động lại API không bị báo lặp. Muốn notifier gửi cả mức `warn`: `python backend/run_notifier.py --levels critical,warn`.
+
+| Biến môi trường | Ý nghĩa |
+|---|---|
+| `ENERGY_CHECK_MIN` | Chu kỳ kiểm tra (phút), mặc định `10`; `0` = tắt luồng cảnh báo |
+| `ENERGY_CONFIG` | Đường dẫn file cấu hình khác `backend/config/energy.json` |
+| `ENERGY_ALERT_STATE` | Đường dẫn file lưu trạng thái đã báo |
+
+### API
+`GET /api/energy/report?month=2026-11` (bỏ `month` = tháng hiện tại) trả về: `kwh`, `bill` (chi tiết từng bậc,
+`subtotal`, `vat`, `total`), `projected`, `budget` (`status`: `off` / `ok` / `warn` / `over`), `by_day` (kWh và tiền
+lũy kế từng ngày), `by_device` (kWh, tỉ lệ, tiền từng thiết bị).
+
+### Demo trên lớp
+```powershell
+python backend/database/seed_history.py
+$env:HISTORY_DB="backend/data/demo_history.db"; $env:ENERGY_CHECK_MIN="0.2"; python backend/run_api.py
+python backend/run_notifier.py --levels critical,warn      # terminal khác
+```
+Dữ liệu mẫu dự báo khoảng 1,3 triệu đồng/tháng, vượt ngân sách mặc định 1 triệu, nên vài giây sau notifier nhận
+cảnh báo `warn`. Hạ `budget_vnd` trong `energy.json` xuống `200000` để thấy cảnh báo `critical`.
+Xóa `backend/data/energy_alerts.json` để demo lại từ đầu.
+
+### Kiểm thử
+```powershell
+python -m unittest backend.tests.test_energy -v
+```

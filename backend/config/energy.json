@@ -1,0 +1,14 @@
+{
+  "_note": "Giá bán lẻ điện sinh hoạt bậc thang của EVN (đồng/kWh, CHƯA gồm VAT), áp dụng từ 10/5/2025. Khi EVN đổi giá chỉ cần sửa file này, API tự đọc lại.",
+  "tiers": [
+    {"up_to": 50,   "price": 1984},
+    {"up_to": 100,  "price": 2050},
+    {"up_to": 200,  "price": 2380},
+    {"up_to": 300,  "price": 2998},
+    {"up_to": 400,  "price": 3350},
+    {"up_to": null, "price": 3460}
+  ],
+  "vat": 0.08,
+  "budget_vnd": 1000000,
+  "warn_ratio": 0.8
+}
