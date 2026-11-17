@@ -177,7 +177,8 @@
   function handleMessage(topic, text, meta = {}) {
     if (!meta.silent) {
       state.rxTimes.push(Date.now());
-      logMessage(topic, text, meta);
+      // Không hiện mã PIN tắt an ninh trong Message log (lệnh home/_auto/security/set)
+      logMessage(topic, text.replace(/("pin"\s*:\s*)"[^"]*"/g, '$1"***"'), meta);
     }
     if (topic.startsWith("$SYS/")) return handleSys(topic, text);
 
@@ -323,6 +324,8 @@
     } else if (what === "mode" && kind === "state") {
       state.mode = d.mode;
       renderMode();
+    } else if (what === "security" && kind === "state") {
+      window.dispatchEvent(new CustomEvent("sh:security", { detail: d }));     // js/security.js vẽ khung An ninh
     } else if (what === "notify" && kind === "event") {
       const lvl = { critical: "bad", warn: "warn", info: "info", rule: "rule" }[d.level] || "info";
       if (lvl === "bad" && !meta.retain) toast("bad", d.text);    // toast tự thêm vào danh sách
@@ -401,6 +404,7 @@
     el.sceneTopic.textContent = `${state.prefix}/_auto/scene/set`;
     el.dashWill.textContent = `${state.prefix}/_dashboard/${state.clientId}/status`;
     renderTabs(); renderEngine(); renderMode(); updateKpis(); scheduleCharts();
+    window.dispatchEvent(new CustomEvent("sh:security", { detail: null }));    // mất kết nối: chưa biết trạng thái an ninh
   }
 
   function effStatus(dev) {
@@ -868,7 +872,10 @@
 
   el.modeSeg.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-mode]");
-    if (b && !b.disabled) send(`${state.prefix}/_auto/mode/set`, { mode: b.dataset.mode });
+    if (!b || b.disabled) return;
+    // Đang canh gác: đổi chế độ phải nhập PIN trước (js/security.js mở hộp nhập PIN và tự gửi lệnh)
+    if (window.SmartHomeSecurity && window.SmartHomeSecurity.interceptMode(b.dataset.mode)) return;
+    send(`${state.prefix}/_auto/mode/set`, { mode: b.dataset.mode });
   });
   el.scenes.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-scene]");

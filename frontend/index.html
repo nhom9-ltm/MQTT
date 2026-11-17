@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="layout/sidebar.css?v=22">
   <link rel="stylesheet" href="css/history.css?v=22">
   <link rel="stylesheet" href="css/auth.css?v=22">
+  <link rel="stylesheet" href="css/security.css?v=23">
   <script>
     /* Chọn sẵn trang theo #hash TRƯỚC lần vẽ đầu tiên, để không nháy trang chủ rồi mới nhảy sang trang khác.
        nav.js sẽ gỡ thuộc tính này khi router đã sẵn sàng. */
@@ -79,6 +80,13 @@
       </div>
     </header>
 
+    <!-- Báo động / chờ nhập PIN: hiện ở mọi trang (js/security.js) -->
+    <div class="sec-banner" id="secBanner" role="alert" hidden>
+      <span class="sec-banner-icon" aria-hidden="true">🚨</span>
+      <span class="sec-banner-text" id="secBannerText"></span>
+      <button type="button" class="btn" id="secBannerPin">Nhập mã PIN</button>
+    </div>
+
     <!-- Thông báo nổi (toasts) -->
     <div class="toasts" id="toasts" aria-live="assertive"></div>
 
@@ -108,6 +116,20 @@
               <button data-mode="home">Ở nhà</button>
               <button data-mode="away">Vắng nhà</button>
               <button data-mode="night">Ban đêm</button>
+            </div>
+            <!-- An ninh: trạng thái + tắt bằng PIN + nút khẩn cấp (js/security.js) -->
+            <div class="sec-box" id="secBox" data-state="unknown">
+              <div class="sec-status">
+                <i class="sec-dot" aria-hidden="true"></i>
+                <div>
+                  <b id="secLabel">An ninh: chưa có dữ liệu</b>
+                  <small id="secDetail">Chuyển sang Vắng nhà / Ban đêm để bật</small>
+                </div>
+              </div>
+              <div class="sec-actions">
+                <button type="button" class="btn sm" id="secDisarm" hidden>Tắt an ninh</button>
+                <button type="button" class="btn sm danger" id="secPanic" title="Báo động ngay lập tức">Khẩn cấp</button>
+              </div>
             </div>
           </div>
           <div class="panel quick-scenes-panel">
@@ -293,9 +315,29 @@
   </div>
 </div>
 
+<!-- Hộp nhập PIN tắt an ninh (js/security.js) -->
+<dialog class="pin-dialog" id="pinDialog" aria-labelledby="pinTitle">
+  <form method="dialog" id="pinForm" autocomplete="off">
+    <h3 id="pinTitle">Nhập mã PIN</h3>
+    <p class="muted" id="pinHint">Tắt an ninh và về chế độ Ở nhà</p>
+    <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8"
+           aria-label="Mã PIN" placeholder="••••" required>
+    <div class="pin-pad" id="pinPad">
+      <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+      <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+      <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+      <button type="button" data-k="clear" aria-label="Xóa">⌫</button><button type="button" data-k="0">0</button>
+      <button type="submit" value="ok" class="pin-ok" aria-label="Xác nhận">✓</button>
+    </div>
+    <div class="pin-foot">
+      <button type="button" class="btn ghost" id="pinCancel">Hủy</button>
+    </div>
+  </form>
+</dialog>
 <script src="js/auth.js?v=22"></script>
-<script src="mock/demo.js?v=22"></script>
-<script src="js/app.js?v=22"></script>
+<script src="mock/demo.js?v=23"></script>
+<script src="js/security.js?v=23"></script>
+<script src="js/app.js?v=23"></script>
 <script src="js/history.js?v=22"></script>
 <script src="js/device-connect.js?v=22"></script>
 <script src="js/nav.js?v=22"></script>

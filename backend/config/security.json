@@ -1,0 +1,27 @@
+{
+  "_note": "Cấu hình an ninh (xem docs/MO_RONG.md mục An ninh). Mã PIN mặc định là 1234 — đổi bằng: python backend/run_automation.py --set-pin",
+  "pin": {"salt": "841f966121ef3370", "hash": "fa6b6a1670fd39bb26b94d87c28accae8b661e89636033cc7de668166cce1ac3"},
+  "exit_delay": 20,
+  "entry_delay": 20,
+  "alarm_duration": 600,
+  "repeat_notify": 120,
+  "max_attempts": 5,
+  "lockout": 60,
+  "sensors": [
+    {"device": "entrance/door",   "field": "open",   "value": true, "zone": "entry",     "name": "Cửa chính"},
+    {"device": "living/motion",   "field": "motion", "value": true, "zone": "interior",  "name": "Chuyển động phòng khách"},
+    {"device": "lab/motion",      "field": "motion", "value": true, "zone": "interior",  "name": "Chuyển động phòng lab (ESP32)"},
+    {"device": "entrance/motion", "field": "motion", "value": true, "zone": "perimeter", "name": "Chuyển động trước cửa"}
+  ],
+  "on_trigger": [
+    {"type": "light", "set": {"on": true, "brightness": 100}}
+  ],
+  "presence": {
+    "enabled": true,
+    "after": "18:00",
+    "before": "23:00",
+    "lights": ["living/light", "bedroom/light", "kitchen/light"],
+    "min_s": 300,
+    "max_s": 900
+  }
+}

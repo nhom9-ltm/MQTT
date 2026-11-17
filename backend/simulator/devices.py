@@ -53,6 +53,8 @@ class Device:
     TYPE = "generic"
     REPORT = False          # True: publish state định kỳ (cảm biến, thiết bị đo điện)
 
+    WATCH_MODE = False      # True: subscribe thêm chế độ nhà (home/_auto/mode/state)
+
     def __init__(self, house: "House", room: str, room_name: str, dev_id: str, name: str, **opts):
         self.house = house
         self.args = house.args
@@ -117,12 +119,18 @@ class Device:
             self.publish_status("online")     # ghi đè thông điệp offline/LWT cũ (retained)
             self.publish_state(quiet=True)
         client.subscribe(self.t_set, qos=1)
+        if self.WATCH_MODE:
+            client.subscribe(self.house.t_mode, qos=1)
 
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
         if not self.house.stopping and not self.dead_until:
             self.log(f"Mất kết nối ({reason_code}) — paho tự reconnect...")
 
     def on_message(self, client, userdata, msg):
+        if self.WATCH_MODE and msg.topic == self.house.t_mode:
+            with self.house.lock:
+                self.house.on_mode(msg.payload)
+            return
         if msg.topic != self.t_set:         # phòng thủ: chỉ nhận lệnh đúng topic của mình
             return
         try:
@@ -446,6 +454,7 @@ class Motion(Device):
     """Cảm biến chuyển động PIR: báo motion=true, tự về false sau HOLD giây không có chuyển động."""
     TYPE = "motion"
     HOLD = 15
+    WATCH_MODE = True       # vắng nhà = không có người -> không có chuyển động ngẫu nhiên (tránh báo động giả)
 
     def initial_state(self):
         self.last = 0.0
@@ -456,7 +465,8 @@ class Motion(Device):
         self.state.update(motion=True, last_motion=now_ms())
 
     def update(self, dt, now):
-        if not self.args.no_random and random.random() < self.opts.get("rate", 0.01) * dt:
+        nobody_home = self.house.mode == "away"
+        if not self.args.no_random and not nobody_home and random.random() < self.opts.get("rate", 0.01) * dt:
             was = self.state["motion"]
             self.trigger()
             return not was

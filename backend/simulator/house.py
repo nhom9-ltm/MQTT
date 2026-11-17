@@ -1,6 +1,7 @@
 """Căn nhà giả lập: danh sách phòng/thiết bị và vòng mô phỏng vật lý mỗi giây."""
 from __future__ import annotations
 
+import json
 import math
 import threading
 import time
@@ -58,6 +59,19 @@ class House:
         for spec in getattr(args, "extra", None) or []:
             self.devices.append(self.extra_device(spec))
         self._index = {(d.room, d.TYPE): d for d in reversed(self.devices)}
+        # Chế độ nhà (do automation phát, retained): vắng nhà thì cảm biến chuyển động không tự sinh chuyển động ngẫu nhiên
+        self.t_mode = f"{args.prefix}/_auto/mode/state"
+        self.mode: str | None = None
+
+    def on_mode(self, payload: bytes):
+        try:
+            mode = json.loads(payload.decode() or "{}").get("mode")
+        except (ValueError, AttributeError):
+            return
+        if mode != self.mode:
+            self.mode = mode
+            if mode == "away":
+                print("Chế độ Vắng nhà: tạm dừng chuyển động ngẫu nhiên (nút Giả lập trên dashboard vẫn dùng được)")
 
     EXTRA_TYPES = {cls.TYPE: cls for cls in (Light, Fan, AirCon, Curtain, Plug, Lock, Door, Motion, Gas, Climate)}
 

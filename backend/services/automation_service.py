@@ -9,6 +9,9 @@ Luật (backend/config/rules.json):
   conditions : các điều kiện phụ, tất cả phải đúng tại thời điểm kích hoạt
   actions    : set / scene / mode / notify / delay, chạy tuần tự
   cooldown   : số giây tối thiểu giữa 2 lần chạy
+
+An ninh (backend/config/security.json): xem SecurityService — engine chuyển cho nó trạng thái cảm biến, đổi chế độ
+và lệnh home/_auto/security/set; đổi chế độ / chạy kịch bản bị chặn khi đang canh gác mà chưa nhập PIN.
 """
 from __future__ import annotations
 
@@ -17,14 +20,17 @@ import os
 import threading
 import time
 
+from backend.common.paths import CONFIG_DIR
 from backend.repositories.rule_repository import save_rules
 from backend.repositories.scene_repository import custom_path_for, load_custom_scenes, save_custom_scenes
 from backend.services.rule_helpers import MODES, OPS, WARMUP, SafeDict, in_window, load_json
 from backend.services.scene_validation import SceneError, validate_scene
+from backend.services.security_service import SecurityService, load_config as load_security
 
 
 class AutomationService:
-    def __init__(self, prefix: str, rules_path: str, scenes_path: str, publish, custom_scenes_path: str | None = None):
+    def __init__(self, prefix: str, rules_path: str, scenes_path: str, publish, custom_scenes_path: str | None = None,
+                 security_path: str | None = None):
         """publish(topic, payload, qos=…, retain=…) — thường là client.publish của paho.
 
         Kịch bản viết tay nằm ở scenes_path; kịch bản người dùng tạo từ dashboard được lưu riêng ở
@@ -54,6 +60,14 @@ class AutomationService:
         self.t_mode = f"{self.p}/_auto/mode/state"
         self.t_notify = f"{self.p}/_auto/notify/event"
         self.t_locked = f"{self.p}/_admin/locked/state"
+        self.t_security = f"{self.p}/_auto/security/state"
+
+        self.security = SecurityService(
+            load_security(security_path or os.path.join(CONFIG_DIR, "security.json")),
+            publish_state=lambda snap: self.publish(self.t_security, json.dumps(snap, ensure_ascii=False), qos=1, retain=True),
+            notify=self.notify,
+            run_actions=lambda actions, source: self.run_actions(actions, SafeDict(), source),
+            send=self.send)
 
     # =================================================================
     #  Vòng đời
@@ -68,6 +82,8 @@ class AutomationService:
         with self.lock:
             if self.mode is None:               # broker chưa có chế độ nào được lưu
                 self.set_mode("home", "khởi động")
+            elif self.mode in ("away", "night") and self.security.state == "disarmed":
+                self.security.on_mode(self.mode, "khởi động")     # đang vắng nhà / ban đêm mà chưa có trạng thái an ninh
             n = len(self.devices)
             print(f"Đã phát hiện {n} thiết bị qua retained message. Chế độ: {MODES.get(self.mode, self.mode)}")
 
@@ -76,6 +92,7 @@ class AutomationService:
         with self.lock:
             self.reload_rules_if_changed()
             self.evaluate()
+            self.security.tick()
 
     def _mtime(self) -> float:
         try:
@@ -120,6 +137,7 @@ class AutomationService:
             if room.startswith("_"):
                 return
             key = f"{room}/{dev}"
+            warm = time.time() < self.warm_until
             if kind == "status":
                 if data is None:                # retained bị xóa → thiết bị bị gỡ khỏi hệ thống
                     self.devices.pop(key, None)
@@ -127,8 +145,11 @@ class AutomationService:
                 d = self.devices.setdefault(key, {"room": room, "id": dev, "state": {}})
                 d.update(online=data.get("state") != "offline", type=data.get("type"),
                          node=data.get("node"), name=data.get("name", dev))
+                self.security.on_status(key, d["online"], warm)
             elif kind == "state" and isinstance(data, dict):
                 self.devices.setdefault(key, {"room": room, "id": dev, "online": True})["state"] = data
+                if key not in self.locked:
+                    self.security.on_state(key, data, warm)
             self.evaluate()
 
     def on_control(self, what: str, kind: str, data: dict):
@@ -142,6 +163,9 @@ class AutomationService:
                 self.notify("warn", f"Chế độ không hợp lệ: {data.get('mode')!r}", src)
                 return
             mode = data["mode"]
+            if not self.security.mode_allowed(mode):
+                self.notify("warn", f"Đang bật an ninh — nhập mã PIN để tắt trước khi chuyển sang “{MODES[mode]}”", src)
+                return
             # Người dùng tự chọn chế độ -> chạy HẲN kịch bản gắn với chế độ đó (khai báo "for_mode" trong scenes.json):
             # Ở nhà = "Về nhà", Vắng nhà = "Ra khỏi nhà", Ban đêm = "Đi ngủ". Kịch bản tự đặt chế độ ở đúng bước của nó.
             # Chỉ áp dụng ở đây (lệnh từ người dùng); kịch bản/luật đổi chế độ qua set_mode nên không bị chạy lặp.
@@ -158,6 +182,24 @@ class AutomationService:
                 self.run_scene(data.get("scene"), src)
         elif what == "rule" and kind == "set":
             self.set_rule_enabled(data.get("id"), bool(data.get("enabled", True)), src)
+        elif what == "security" and kind == "state":
+            if time.time() < self.warm_until:   # chỉ khôi phục lúc khởi động; sau đó là bản do chính engine phát
+                self.security.restore(data)
+        elif what == "security" and kind == "set":
+            self.on_security(data, src)
+
+    def on_security(self, data: dict, src: str):
+        """{"action": "disarm", "pin": "1234", "mode"?: "home"} — tắt an ninh rồi chuyển sang chế độ `mode` (mặc định
+        Ở nhà, chạy kịch bản gắn với chế độ đó); {"action": "panic"} — báo động ngay."""
+        action = data.get("action")
+        if action == "panic":
+            self.security.panic(src)
+        elif action == "disarm":
+            target = data.get("mode") if data.get("mode") in MODES else "home"
+            if self.security.disarm(data.get("pin"), src) and self.mode != target:
+                self.on_control("mode", "set", {"mode": target, "from": src})
+        else:
+            self.notify("warn", f"Lệnh an ninh không hợp lệ: {action!r}", src)
 
     # =================================================================
     #  Đánh giá luật
@@ -328,6 +370,9 @@ class AutomationService:
             print(f"Không có kịch bản '{scene_id}'")
             self.notify("warn", f"Không có kịch bản “{scene_id}”", source)
             return
+        if not self.security.scene_allowed(scene):
+            self.notify("warn", f"Đang bật an ninh — không chạy kịch bản “{scene['name']}” khi chưa nhập mã PIN", source)
+            return
         print(f"[{time.strftime('%H:%M:%S')}] 🎬 Kịch bản “{scene['name']}” (từ {source})")
         self.notify("info", f"Chạy kịch bản “{scene['name']}”", source)
         self.scene_gen += 1                 # kịch bản mới thay thế mọi kịch bản cũ đang chạy dở
@@ -364,6 +409,9 @@ class AutomationService:
     def set_mode(self, mode: str, source: str):
         if mode not in MODES:
             return
+        if not self.security.mode_allowed(mode):
+            self.notify("warn", f"Đang bật an ninh — bỏ qua chuyển sang chế độ “{MODES[mode]}” (từ {source})", source)
+            return
         changed = mode != self.mode
         self.mode = mode
         self.publish(self.t_mode, json.dumps({"mode": mode, "by": source, "ts": int(time.time() * 1000)}),
@@ -371,6 +419,7 @@ class AutomationService:
         if changed:
             print(f"[{time.strftime('%H:%M:%S')}] 🏠 Chế độ: {MODES[mode]} (từ {source})")
             self.notify("info", f"Chuyển sang chế độ “{MODES[mode]}”", source)
+            self.security.on_mode(mode, source)
             self.evaluate()
 
     def set_rule_enabled(self, rule_id: str, enabled: bool, source: str):
@@ -400,6 +449,7 @@ class AutomationService:
                       for r in self.rules],
             "scenes": [{"id": s["id"], "name": s["name"], "icon": s.get("icon", ""), "custom": bool(s.get("custom"))}
                        for s in self.scenes],
+            "security": self.security.describe(),
         }
         if reason:
             payload["reason"] = reason
