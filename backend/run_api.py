@@ -31,6 +31,10 @@ def main():
     except DatabaseUnavailable as e:
         print(f"Bỏ qua seed: {e}")
 
+    # Cảnh báo khi tiền điện tháng này gần chạm / vượt ngân sách (backend/config/energy.json)
+    from backend.services import energy_watcher
+    energy_watcher.start()
+
     import uvicorn
     from backend.controllers.api_controller import app
     uvicorn.run(app, host=args.host, port=args.port)

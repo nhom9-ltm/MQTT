@@ -12,3 +12,31 @@
 #page-history .alerts { max-height: 320px; overflow: auto; }
 #page-history .hist-empty { color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; }
 @media (max-width: 960px) { #page-history .hist-grid { grid-template-columns: 1fr; } }
+
+/* ---------- Tiền điện theo tháng (#billPanel) ---------- */
+#page-history .bill-panel { margin: 18px 0; }
+#page-history .bill-month { background: var(--bg-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 5px 10px; font: inherit; color-scheme: dark light; }
+#page-history .bill-kpis { margin-bottom: 14px; }
+#page-history .bill-kpis .kpi { background: var(--bg-2); }
+#page-history .k-sub { font-size: 11px; color: var(--muted); }
+#page-history .bill-budget { display: grid; gap: 6px; margin-bottom: 16px; }
+#page-history .bill-bar { position: relative; height: 10px; border-radius: 99px; background: var(--bg-2);
+  border: 1px solid var(--line); overflow: hidden; }
+#page-history .bill-bar i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 99px; transition: width .4s; }
+#page-history #billBarProj { background: repeating-linear-gradient(45deg, var(--line) 0 4px, transparent 4px 8px); }
+#page-history #billBarNow { background: var(--ok); z-index: 1; }
+#page-history .bill-budget[data-status="warn"] #billBarNow { background: var(--warn); }
+#page-history .bill-budget[data-status="over"] #billBarNow { background: var(--bad); }
+#page-history .bill-budget[data-status="off"] .bill-bar { display: none; }
+#page-history .bill-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; }
+#page-history .bill-side { display: grid; align-content: start; gap: 8px; min-width: 0; }
+#page-history .bill-side h4 { margin: 4px 0 0; font-size: 12px; color: var(--muted); font-weight: 600; }
+#page-history .bill-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+#page-history .bill-table td { padding: 5px 4px; border-bottom: 1px solid var(--line); }
+#page-history .bill-table td.n { text-align: right; font-family: var(--mono); white-space: nowrap; }
+#page-history .bill-table td.bill-dev { overflow-wrap: anywhere; }
+#page-history .bill-table tr.total td { font-weight: 600; border-bottom: 0; }
+#page-history .bill-share { display: block; height: 3px; margin-top: 3px; border-radius: 2px; background: var(--c-plug); }
+#page-history #billNote { margin: 12px 0 0; }
+@media (max-width: 960px) { #page-history .bill-grid { grid-template-columns: 1fr; } }
