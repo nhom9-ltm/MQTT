@@ -137,6 +137,20 @@ và Chart.js.
 
 ---
 
+## Bật mã hóa TLS
+
+Chi tiết và demo Wireshark: [docs/TLS.md](docs/TLS.md). Tóm tắt:
+
+```powershell
+pip install -r backend/requirements-extra.txt
+python infra/broker/gen_certs.py --install                                         # một lần; mở lại trình duyệt
+& "C:\Program Files\mosquitto\mosquitto.exe" -c infra/broker/mosquitto.tls.conf -v     # thay cho lệnh broker ở trên
+python backend/run_simulator.py --tls                                              # thêm --tls cho mọi script Python
+# dashboard: http://localhost:8080/?tls=1  → pill "Đã kết nối · TLS"
+```
+
+---
+
 ## Chạy chung trên nhiều máy (cùng WiFi)
 
 Một máy chạy broker, các máy khác trỏ vào IP của máy đó:

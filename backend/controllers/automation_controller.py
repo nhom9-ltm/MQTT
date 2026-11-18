@@ -25,7 +25,7 @@ import sys
 import time
 
 from backend.common.cli import add_mqtt_args
-from backend.common.mqtt_client import new_client
+from backend.common.mqtt_client import broker_label, new_client
 from backend.common.paths import CONFIG_DIR
 from backend.services.automation_service import AutomationService
 from backend.services.security_service import save_pin
@@ -36,7 +36,7 @@ class AutomationController:
         self.args = args
         self.stopping = False
         self.client = new_client(args.client_id, clean_session=True,
-                                 username=args.username, password=args.password)
+                                 username=args.username, password=args.password, tls=args.tls, cafile=args.cafile)
         self.service = AutomationService(args.prefix, args.rules, args.scenes, publish=self.client.publish,
                                          security_path=args.security)
         # Engine cũng có LWT: dashboard biết ngay khi "bộ não" ngừng hoạt động
@@ -52,7 +52,7 @@ class AutomationController:
             print(f"Kết nối thất bại: {reason_code}")
             return
         svc = self.service
-        print(f"Đã kết nối {self.args.host}:{self.args.port} — {len(svc.rules)} luật, {len(svc.scenes)} kịch bản")
+        print(f"Đã kết nối {broker_label(self.args)} — {len(svc.rules)} luật, {len(svc.scenes)} kịch bản")
         client.subscribe([
             (f"{svc.p}/+/+/status", 1),
             (f"{svc.p}/+/+/state", 1),

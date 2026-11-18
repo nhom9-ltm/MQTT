@@ -3,3 +3,4 @@
 fastapi>=0.110
 uvicorn>=0.29
 psycopg[binary]>=3.2
+cryptography>=42        # infra/broker/gen_certs.py: tạo CA + chứng chỉ TLS cho broker (docs/TLS.md)

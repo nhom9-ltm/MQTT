@@ -9,6 +9,7 @@ các script cũ chạy như trước). Làm theo thứ tự:
 | 2 | [Xác thực + ACL](#2-xác-thực--acl) | `infra/broker/mosquitto.secure.conf`, `docker-compose.secure.yml`, `infra/broker/setup_auth.py`, `infra/broker/test_acl.py`, `frontend/js/auth.js` | xem bên dưới |
 | 3 | [Lịch sử + biểu đồ](#3-lịch-sử--biểu-đồ) | `backend/controllers/api_controller.py`, `backend/services/history_service.py`, `backend/repositories/history_repository.py`, `backend/database/seed_history.py`, `frontend/index.html` (trang `#/history`), `frontend/js/history.js`, `frontend/css/history.css` | `python backend/run_api.py` |
 | 4 | [Tiền điện + ngân sách](#4-tiền-điện--ngân-sách) | `backend/config/energy.json`, `backend/services/energy_service.py`, `backend/services/energy_watcher.py`, `backend/common/mqtt_publish.py`, `backend/tests/test_energy.py` | `python backend/run_api.py` |
+| 5 | [Mã hóa TLS](TLS.md) (tài liệu riêng) | `infra/broker/gen_certs.py`, `infra/broker/mosquitto.tls.conf`, `docker-compose.tls.yml`, `backend/common/tls.py`, `backend/tests/test_tls.py` | `python infra/broker/gen_certs.py --install` rồi chạy với `--tls` |
 
 Thay đổi nhỏ ở file cũ (chỉ thêm, không sửa): `infra/broker/acl.conf` (+ user `notifier`), `.gitignore`
 (+ `infra/broker/credentials.env`), `frontend/index.html` (+ nút **Lịch sử**, + thẻ `<script src="js/auth.js">`).

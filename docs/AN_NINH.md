@@ -80,7 +80,7 @@ ACL không phải sửa cho dashboard và automation (đã có `home/_auto/+/set
 `topic read home/_auto/mode/state` cho user `simulator`.
 
 **Mã PIN đi qua broker dạng chữ thường.** Logger và trang Message log của dashboard đều che PIN (`"pin":"***"`),
-nhưng client nào được đọc `home/#` vẫn thấy được PIN. Khi triển khai thật, hãy bật TLS và giới hạn quyền đọc.
+nhưng client nào được đọc `home/#` vẫn thấy được PIN. Khi triển khai thật, hãy bật TLS ([TLS.md](TLS.md)) để PIN không lộ trên đường truyền, và giới hạn quyền đọc.
 
 ## Cấu hình: `backend/config/security.json`
 

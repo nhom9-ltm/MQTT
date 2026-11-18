@@ -1,0 +1,28 @@
+# Bản ghi đè để bật TLS cho broker trong Docker. Không sửa docker-compose.yml. Xem docs/TLS.md.
+#   python infra/broker/gen_certs.py
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --force-recreate mosquitto
+# Quay lại không mã hóa:  docker compose up -d --force-recreate mosquitto
+services:
+  mosquitto:
+    ports:
+      - "8883:8883"   # MQTT over TLS
+      - "8443:8443"   # MQTT over WebSocket + TLS (wss://) cho dashboard
+    volumes:
+      - ./infra/broker/mosquitto.tls.docker.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/broker/certs:/mosquitto/certs:ro
+
+  # Profile "full": automation/simulator trong Docker kết nối qua TLS, kiểm tra tên "mosquitto" có trong chứng chỉ
+  automation:
+    environment:
+      MQTT_TLS: "1"
+      MQTT_PORT: "8883"
+      MQTT_CAFILE: /app/certs/ca.crt
+    volumes:
+      - ./infra/broker/certs/ca.crt:/app/certs/ca.crt:ro
+  simulator:
+    environment:
+      MQTT_TLS: "1"
+      MQTT_PORT: "8883"
+      MQTT_CAFILE: /app/certs/ca.crt
+    volumes:
+      - ./infra/broker/certs/ca.crt:/app/certs/ca.crt:ro

@@ -16,7 +16,7 @@ import json
 import sys
 
 from backend.common.cli import add_mqtt_args
-from backend.common.mqtt_client import new_client
+from backend.common.mqtt_client import broker_label, new_client
 from backend.services.notification_service import NotificationService
 from backend.services.notify_channels import enabled_channels
 
@@ -59,12 +59,12 @@ def main():
             print(f"Kết nối broker thất bại: {rc}")
             return
         client.subscribe(topic, qos=1)
-        print(f"Đã kết nối {args.host}:{args.port} — nghe {topic}, "
+        print(f"Đã kết nối {broker_label(args)} — nghe {topic}, "
               f"level={sorted(service.levels)}, kênh={[c.name for c in channels]}, "
               f"session_present={flags.session_present}")
 
     client = new_client(args.client_id, clean_session=False,
-                        username=args.username, password=args.password)
+                        username=args.username, password=args.password, tls=args.tls, cafile=args.cafile)
     client.on_connect = on_connect
     client.on_message = on_message
     client.reconnect_delay_set(1, 10)

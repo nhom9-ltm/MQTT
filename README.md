@@ -207,6 +207,7 @@ mà nó không hiểu.
 | **Tách rời publisher / subscriber** | automation chỉ là một client như bao client khác | Tắt automation: thiết bị và dashboard vẫn chạy, chỉ mất luật tự động |
 | **$SYS** | `sys_interval 5` | Ô KPI *Client trên broker* |
 | **Xác thực & ACL** | `infra/broker/acl.conf` | Dashboard chỉ được ghi `…/set`, không thể giả mạo `state` của thiết bị |
+| **Mã hóa TLS** | cổng 8883 (MQTT/TLS), 8443 (`wss://`) — [docs/TLS.md](docs/TLS.md) | Wireshark: cổng 1883 đọc được cả PIN, cổng 8883 chỉ thấy `TLS Application Data` |
 
 > **Vì sao ESP32 cần "node"?** Mỗi kết nối MQTT chỉ khai báo được **một** Last Will. ESP32 dùng một kết nối
 > cho 6 thiết bị, nên LWT gắn với bo mạch. Dashboard và automation coi một thiết bị con là offline khi bo
@@ -384,7 +385,7 @@ một tab `?demo=1` để dự phòng.
 
 ## 11. Hướng mở rộng
 
-- **Bảo mật:** bật xác thực + ACL (`infra/broker/acl.conf` có sẵn quyền cho từng loại client); bật TLS (8883 / wss 8443) bằng chứng chỉ tự ký.
+- **Bảo mật:** bật xác thực + ACL (`infra/broker/acl.conf` có sẵn quyền cho từng loại client); TLS (8883 / wss 8443) bằng chứng chỉ tự ký **đã có**, xem [docs/TLS.md](docs/TLS.md).
 - **Dữ liệu:** nạp `backend/data/smarthome.db` (các view `climate`, `energy`, `commands`) vào Grafana; hoặc thay SQLite bằng InfluxDB.
 - **MQTT v5:** message expiry cho lệnh; response topic để thiết bị xác nhận lệnh; shared subscription `$share/loggers/home/#` để chạy nhiều logger song song.
 - **Tích hợp:** chuyển `status` sang định dạng MQTT Discovery để Home Assistant tự nhận thiết bị.

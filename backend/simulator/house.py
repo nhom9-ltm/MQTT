@@ -6,6 +6,7 @@ import math
 import threading
 import time
 
+from backend.common.mqtt_client import broker_label
 from backend.simulator.devices import (AirCon, Climate, Curtain, Device, Door, Fan, Gas, Light, Lock,
                              Motion, Plug)
 
@@ -106,7 +107,7 @@ class House:
     def run(self):
         for d in self.devices:
             d.start()
-        print(f"Đã khởi động {len(self.devices)} thiết bị → {self.args.host}:{self.args.port} "
+        print(f"Đã khởi động {len(self.devices)} thiết bị → {broker_label(self.args)} "
               f"(prefix '{self.args.prefix}', QoS {self.args.qos}). Ctrl+C để tắt.", flush=True)
         last = time.time()
         while not self.stopping:

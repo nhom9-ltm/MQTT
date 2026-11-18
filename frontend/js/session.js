@@ -4,9 +4,26 @@
  * Nạp trong <head> với thuộc tính data-guard:
  *   data-guard="user"   trang của người dùng (index.html) — tài khoản admin mở vào sẽ bị đưa về admin.html
  *   data-guard="admin"  trang quản trị (admin.html) — tài khoản user mở vào sẽ bị đưa về index.html
- * Đây chỉ là điều hướng giao diện; quyền thật do API kiểm tra (backend/controllers/auth_controller.py). */
+ * Đây chỉ là điều hướng giao diện; quyền thật do API kiểm tra (backend/controllers/auth_controller.py).
+ *
+ * Địa chỉ broker (dùng chung cho index.html và admin.html qua Session.brokerUrl()):
+ *   ?broker=wss://...  chỉ định hẳn địa chỉ
+ *   ?tls=1             kết nối mã hóa wss://<máy>:8443 (xem docs/TLS.md); ?tls=0 quay lại ws://<máy>:9001.
+ *                      Lựa chọn được nhớ trong localStorage nên mở tab mới / đăng nhập lại vẫn giữ. */
 (() => {
   const qs = new URLSearchParams(location.search);
+  try {
+    if (qs.has("tls")) localStorage.setItem("sh.tls", qs.get("tls") === "1" ? "1" : "0");
+  } catch { /* trình duyệt chặn lưu trữ */ }
+  function brokerTls() {
+    if (location.protocol === "https:") return true;      // trang https chỉ được mở wss://
+    try { return localStorage.getItem("sh.tls") === "1"; } catch { return false; }
+  }
+  function brokerUrl() {
+    if (qs.get("broker")) return qs.get("broker");
+    const host = location.hostname || "localhost";
+    return brokerTls() ? `wss://${host}:8443` : `ws://${host}:9001`;
+  }
   const guard = document.currentScript && document.currentScript.dataset.guard;
   const store = {
     get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } },
@@ -49,7 +66,7 @@
     toLogin();
   }
 
-  window.Session = { api, save, clear, token, user, homeOf, logout, toLogin };
+  window.Session = { api, save, clear, token, user, homeOf, logout, toLogin, brokerUrl };
 
   // Bản công khai trên GitHub Pages không có API để đăng nhập nên bỏ qua kiểm tra
   const publicDemo = location.hostname.endsWith("github.io") && !qs.get("broker");

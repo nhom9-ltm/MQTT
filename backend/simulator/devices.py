@@ -21,7 +21,7 @@ import random
 import socket
 import time
 
-from backend.common.mqtt_client import new_client
+from backend.common.mqtt_client import broker_label, new_client
 
 FW = "sim-2.0.0"
 
@@ -95,7 +95,8 @@ class Device:
     # ---------- MQTT ----------
     def build_client(self):
         c = new_client(f"sim-{self.room}-{self.id}-{os.getpid()}", clean_session=True,
-                       username=self.args.username, password=self.args.password)
+                       username=self.args.username, password=self.args.password,
+                       tls=self.args.tls, cafile=self.args.cafile)
         # LAST WILL — đặt TRƯỚC connect(). Broker chỉ phát khi thiết bị mất kết nối bất thường.
         c.will_set(self.t_status, json.dumps({"state": "offline", "reason": "lwt"}), qos=1, retain=True)
         c.on_connect = self.on_connect
@@ -114,7 +115,7 @@ class Device:
             self.log(f"Kết nối thất bại: {reason_code}")
             return
         if self.args.verbose:
-            self.log(f"Đã kết nối {self.args.host}:{self.args.port}")
+            self.log(f"Đã kết nối {broker_label(self.args)}")
         with self.house.lock:
             self.publish_status("online")     # ghi đè thông điệp offline/LWT cũ (retained)
             self.publish_state(quiet=True)
