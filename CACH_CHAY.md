@@ -98,7 +98,7 @@ Tắt: bấm `Ctrl+C` ở từng terminal.
 |---|---|
 | Broker | `Opening ipv4 listen socket on port 1883` và `... port 9001` |
 | `run_simulator.py` | `Đã khởi động 20 thiết bị → localhost:1883` |
-| `run_automation.py` | `Đã kết nối localhost:1883 — 11 luật, 5 kịch bản` |
+| `run_automation.py` | `Đã kết nối localhost:1883 — 9 luật, 5 kịch bản` |
 | `run_logger.py` | `Đã kết nối. session_present=...` |
 
 Thử gửi lệnh bật đèn phòng khách:
