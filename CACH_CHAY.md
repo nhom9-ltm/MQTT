@@ -98,7 +98,7 @@ Tắt: bấm `Ctrl+C` ở từng terminal.
 |---|---|
 | Broker | `Opening ipv4 listen socket on port 1883` và `... port 9001` |
 | `run_simulator.py` | `Đã khởi động 20 thiết bị → localhost:1883` |
-| `run_automation.py` | `Đã kết nối localhost:1883 — 11 luật, 5 kịch bản` |
+| `run_automation.py` | `Đã kết nối localhost:1883 — 9 luật, 5 kịch bản` |
 | `run_logger.py` | `Đã kết nối. session_present=...` |
 
 Thử gửi lệnh bật đèn phòng khách:
@@ -134,6 +134,20 @@ giả lập riêng. Link tự cập nhật mỗi khi có thay đổi trong `fron
 Trên máy mình: đăng nhập bằng tài khoản `user` rồi bấm nút **Demo** trên thanh trên (hoặc mở `index.html?demo=1`). Broker,
 20 thiết bị và automation đều được giả lập ngay trong trình duyệt. Trang quản trị không có chế độ Demo. Cần Internet để tải thư viện MQTT.js
 và Chart.js.
+
+---
+
+## Bật mã hóa TLS
+
+Chi tiết và demo Wireshark: [docs/TLS.md](docs/TLS.md). Tóm tắt:
+
+```powershell
+pip install -r backend/requirements-extra.txt
+python infra/broker/gen_certs.py --install                                         # một lần; mở lại trình duyệt
+& "C:\Program Files\mosquitto\mosquitto.exe" -c infra/broker/mosquitto.tls.conf -v     # thay cho lệnh broker ở trên
+python backend/run_simulator.py --tls                                              # thêm --tls cho mọi script Python
+# dashboard: http://localhost:8080/?tls=1  → pill "Đã kết nối · TLS"
+```
 
 ---
 

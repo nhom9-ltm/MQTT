@@ -54,13 +54,6 @@
       trigger: { device: "entrance/motion", field: "motion", op: "==", value: true },
       conditions: [{ time: { after: "17:30", before: "06:00" } }],
       actions: [{ device: "entrance/porch-light", set: { on: true } }, { delay: 120 }, { device: "entrance/porch-light", set: { on: false } }] },
-    { id: "intrusion_door", name: "Cửa mở khi vắng nhà / ban đêm → báo động", description: "Bật toàn bộ đèn và gửi cảnh báo",
-      trigger: { device: "entrance/door", field: "open", op: "==", value: true }, conditions: [{ mode: ["away", "night"] }],
-      actions: [{ notify: "Cửa chính bị mở khi đang ở chế độ an ninh!", level: "critical" }, { type: "light", set: { on: true, brightness: 100 } }] },
-    { id: "intrusion_motion", name: "Chuyển động khi vắng nhà → báo động", description: "Cảm biến chuyển động phòng khách khi không có ai ở nhà",
-      trigger: { device: "living/motion", field: "motion", op: "==", value: true }, conditions: [{ mode: ["away"] }],
-      actions: [{ notify: "Phát hiện chuyển động trong phòng khách khi vắng nhà!", level: "critical" },
-        { device: "living/light", set: { on: true, brightness: 100 } }], cooldown: 60 },
     { id: "living_idle", name: "Không ai trong phòng khách 2 phút → tắt đèn, quạt", description: "Tiết kiệm điện khi không có chuyển động (không áp dụng khi TV đang bật, ví dụ lúc xem phim)",
       trigger: { device: "living/motion", field: "motion", op: "==", value: false, for: 120 },
       conditions: [{ device: "living/light", field: "on", op: "==", value: true }, { device: "living/tv-plug", field: "on", op: "==", value: false }],
@@ -88,6 +81,20 @@
       { device: "living/ac", set: { on: true, mode: "cool", target: 25 } }] },
   ];
   const MODES = { home: "Ở nhà", away: "Vắng nhà", night: "Ban đêm" };
+  // Bản rút gọn của backend/config/security.json + backend/services/security_service.py (không có giả lập có người ở nhà).
+  // Demo chỉ chạy trong trình duyệt nên PIN để dạng thường; bản thật lưu PBKDF2 và engine kiểm tra.
+  const SECURITY = {
+    pin: "1234", exitDelay: 15, entryDelay: 15, alarmDuration: 120, repeatNotify: 60, maxAttempts: 5, lockout: 60,
+    sensors: [
+      { device: "entrance/door", field: "open", value: true, zone: "entry", name: "Cửa chính" },
+      { device: "living/motion", field: "motion", value: true, zone: "interior", name: "Chuyển động phòng khách" },
+      { device: "entrance/motion", field: "motion", value: true, zone: "perimeter", name: "Chuyển động trước cửa" },
+    ],
+    onTrigger: [{ type: "light", set: { on: true, brightness: 100 } }],
+  };
+  const SEC_ACTIVE = ["arming", "armed_away", "pending", "triggered"];
+  const SEC_LABEL = { disarmed: "Tắt", arming: "Đang bật (chờ ra khỏi nhà)", armed_away: "Canh gác — vắng nhà",
+    armed_night: "Canh gác — ban đêm", pending: "Cửa mở — chờ nhập PIN", triggered: "BÁO ĐỘNG" };
   const OPS = { "==": (a, b) => a === b, "!=": (a, b) => a !== b, ">": (a, b) => a > b, ">=": (a, b) => a >= b, "<": (a, b) => a < b, "<=": (a, b) => a <= b };
 
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -201,8 +208,9 @@
     motion: {
       init: (d) => { d.last = 0; return { motion: false, last_motion: null }; },
       trigger: (d) => { d.last = Date.now(); d.state.motion = true; d.state.last_motion = d.last; },
-      update(d, dt, now) {
-        if (Math.random() < d.o.rate * dt) { const was = d.state.motion; T.motion.trigger(d); return !was; }
+      update(d, dt, now, sim) {
+        // vắng nhà = không có người -> không tự sinh chuyển động (tránh báo động giả); nút Giả lập vẫn dùng được
+        if (!(sim && sim.mode === "away") && Math.random() < d.o.rate * dt) { const was = d.state.motion; T.motion.trigger(d); return !was; }
         if (d.state.motion && now - d.last > 15000) { d.state.motion = false; return true; }
         return false;
       },
@@ -248,6 +256,8 @@
         }
       }
       this.mode = "home";
+      this.sec = { state: "disarmed", armMode: null, since: Date.now(), deadline: null, trigger: null, by: "khởi động",
+        attempts: 0, lockedUntil: 0, nextRepeat: 0, last: {}, perimeterLast: {} };
       this.sceneGen = 0;           // đợt điều khiển hiện hành: kịch bản mới / người dùng đổi chế độ thì tăng, kịch bản cũ dừng (giống BE)
       this.rules = RULES.map((r) => ({ ...r, enabled: true }));
       this.rt = Object.fromEntries(RULES.map((r) => [r.id, { since: null, fired: false, last: 0, lastMs: null }]));
@@ -283,6 +293,7 @@
     report(d, retain = false) {
       d.lastReport = Date.now();
       this.deliver(this.topic(d, "state"), { ...d.state, ts: Date.now() }, retain);
+      this.secSensor(d);
       this.evaluate();
     }
     command(key, c) {
@@ -297,7 +308,7 @@
       d.online = false;
       d.deadUntil = Date.now() + 20000;
       // broker chỉ phát hiện client chết sau ~1.5 × keep-alive (10s) rồi mới publish LWT
-      this.timers.push(setTimeout(() => this.status(d, "offline", "lwt"), 6000));
+      this.timers.push(setTimeout(() => { this.status(d, "offline", "lwt"); this.secOffline(d); }, 6000));
     }
 
     tick(dt) {
@@ -312,6 +323,7 @@
         if (changed || (t.report && now - d.lastReport >= 5000)) this.report(d);
       }
       this.evaluate();
+      this.secTick();
     }
 
     // ---------------- automation engine ----------------
@@ -389,11 +401,20 @@
     control(what, d) {
       if (what === "mode") {
         if (!MODES[d.mode]) return this.notify("warn", `Chế độ không hợp lệ: ${JSON.stringify(d.mode)}`, d.from || "?");
+        if (!this.secModeAllowed(d.mode)) return this.notify("warn", `Đang bật an ninh — nhập mã PIN để tắt trước khi chuyển sang “${MODES[d.mode]}”`, d.from || "?");
         // Người dùng tự chọn chế độ -> chạy HẲN kịch bản gắn với chế độ đó (giống backend: Ở nhà = "Về nhà", Vắng nhà = "Ra khỏi nhà",
         // Ban đêm = "Đi ngủ"); kịch bản tự đặt chế độ ở đúng bước của nó. Đã ở chế độ này thì không điều khiển thiết bị.
         const scene = SCENES.find((s) => s.forMode === d.mode);
         if (scene && d.mode !== this.mode) this.scene(scene.id, d.from || "?");
         else { this.sceneGen++; this.setMode(d.mode, d.from || "?"); }
+      }
+      else if (what === "security") {
+        const src = d.from || "?";
+        if (d.action === "panic") this.secTrigger({ device: null, name: "Nút khẩn cấp" }, src);
+        else if (d.action === "disarm") {
+          const target = MODES[d.mode] ? d.mode : "home";
+          if (this.secDisarm(d.pin, src) && this.mode !== target) this.control("mode", { mode: target, from: src });
+        } else this.notify("warn", `Lệnh an ninh không hợp lệ: ${JSON.stringify(d.action)}`, src);
       }
       else if (what === "scene") { if (d.add) this.addScene(d.add, d.from || "?"); else this.scene(d.scene, d.from || "?"); }
       else if (what === "rule") {
@@ -404,6 +425,9 @@
     scene(id, src) {
       const s = SCENES.find((x) => x.id === id);
       if (!s) return this.notify("warn", `Không có kịch bản “${id}”`, src);
+      if (!s.actions.every((a) => !a.mode || this.secModeAllowed(a.mode))) {
+        return this.notify("warn", `Đang bật an ninh — không chạy kịch bản “${s.name}” khi chưa nhập mã PIN`, src);
+      }
       this.notify("info", `Chạy kịch bản “${s.name}”`, src);
       this.sceneGen++;                            // kịch bản mới thay thế mọi kịch bản cũ đang chạy dở
       this.run(s.actions, {}, `scene:${id}`, this.sceneGen, [], s.name);
@@ -462,10 +486,119 @@
     }
     setMode(m, src) {
       if (!MODES[m]) return;
+      if (!this.secModeAllowed(m)) return this.notify("warn", `Đang bật an ninh — bỏ qua chuyển sang chế độ “${MODES[m]}” (từ ${src})`, src);
       const changed = m !== this.mode;
       this.mode = m;
       this.deliver(`${this.p}/_auto/mode/state`, { mode: m, by: src, ts: Date.now() }, false);
-      if (changed) { this.notify("info", `Chuyển sang chế độ “${MODES[m]}”`, src); this.evaluate(); }
+      if (changed) { this.notify("info", `Chuyển sang chế độ “${MODES[m]}”`, src); this.secOnMode(m, src); this.evaluate(); }
+    }
+
+    // ---------------- an ninh (giống backend/services/security_service.py) ----------------
+    secSnapshot() {
+      const s = this.sec, now = Date.now();
+      return { state: s.state, label: SEC_LABEL[s.state], arm_mode: s.armMode, by: s.by, since: s.since,
+        remaining: s.deadline && (s.state === "arming" || s.state === "pending") ? Math.max(0, Math.round((s.deadline - now) / 1000)) : null,
+        trigger: s.trigger, locked_until: s.lockedUntil > now ? s.lockedUntil : null, ts: now };
+    }
+    secPublish(retain = false) { this.deliver(`${this.p}/_auto/security/state`, this.secSnapshot(), retain); }
+    secSet(state, src, deadline = null) {
+      Object.assign(this.sec, { state, by: src, since: Date.now(), deadline });
+      if (state === "disarmed" || state.startsWith("armed")) this.sec.trigger = null;
+      this.secPublish();
+    }
+    secModeAllowed(m) { return !SEC_ACTIVE.includes(this.sec.state) || m === "away"; }
+    secOnMode(m, src) {
+      const s = this.sec;
+      if (m === "away" && !SEC_ACTIVE.includes(s.state)) {
+        s.armMode = "away";
+        this.secSet("arming", src, Date.now() + SECURITY.exitDelay * 1000);
+        this.notify("info", `Bật an ninh sau ${SECURITY.exitDelay} giây — hãy ra khỏi nhà.`, "security");
+      } else if (m === "night" && s.state === "disarmed") {
+        s.armMode = "night";
+        this.secSet("armed_night", src);
+        this.notify("info", "Đã bật an ninh ban đêm (canh cửa chính)", "security");
+      } else if (m === "home" && s.state === "armed_night") {
+        s.armMode = null;
+        this.secSet("disarmed", src);
+        this.notify("info", "Đã tắt an ninh ban đêm", "security");
+      }
+    }
+    secDisarm(pin, src) {
+      const s = this.sec, now = Date.now();
+      if (s.state === "disarmed") return true;
+      if (now < s.lockedUntil) {
+        this.notify("warn", `Đang khóa nhập PIN, thử lại sau ${Math.round((s.lockedUntil - now) / 1000)} giây`, "security");
+        return false;
+      }
+      if (pin !== SECURITY.pin) {
+        s.attempts++;
+        const left = SECURITY.maxAttempts - s.attempts;
+        if (left <= 0) {
+          s.attempts = 0; s.lockedUntil = now + SECURITY.lockout * 1000;
+          this.notify("critical", `Nhập sai PIN ${SECURITY.maxAttempts} lần — khóa ${SECURITY.lockout} giây`, "security");
+          this.secPublish();
+        } else this.notify("warn", `Sai mã PIN (còn ${left} lần thử)`, "security");
+        return false;
+      }
+      const was = s.state;
+      s.attempts = 0; s.armMode = null;
+      this.secSet("disarmed", src);
+      this.notify(was === "triggered" ? "warn" : "info", was === "triggered" ? "Đã tắt báo động" : "Đã tắt an ninh", "security");
+      return true;
+    }
+    secSensor(d) {
+      const cfg = SECURITY.sensors.find((x) => x.device === d.key);
+      if (!cfg) return;
+      const s = this.sec, v = d.state[cfg.field];
+      const rising = v === cfg.value && s.last[d.key] !== cfg.value;
+      s.last[d.key] = v;
+      if (!rising || Date.now() < this.warmUntil) return;
+      if (cfg.zone === "perimeter") {
+        if (s.state !== "disarmed" && s.state !== "arming" && Date.now() - (s.perimeterLast[d.key] || 0) >= 60000) {
+          s.perimeterLast[d.key] = Date.now();
+          this.notify("warn", `${cfg.name} khi đang bật an ninh`, "security");
+        }
+      } else if (cfg.zone === "entry" && s.state.startsWith("armed")) {
+        s.trigger = { device: d.key, name: cfg.name };
+        this.secSet("pending", `sensor:${d.key}`, Date.now() + SECURITY.entryDelay * 1000);
+        this.notify("warn", `${cfg.name} được mở — nhập PIN trong ${SECURITY.entryDelay} giây`, "security");
+      } else if (cfg.zone === "interior" && s.state === "armed_away") {
+        this.secTrigger({ device: d.key, name: cfg.name }, `sensor:${d.key}`);
+      }
+    }
+    secOffline(d) {
+      const cfg = SECURITY.sensors.find((x) => x.device === d.key);
+      if (cfg && this.sec.state !== "disarmed") {
+        this.notify(["armed_away", "triggered"].includes(this.sec.state) ? "critical" : "warn",
+          `${cfg.name} mất kết nối khi đang bật an ninh — kiểm tra ngay!`, "security");
+      }
+    }
+    secTrigger(trigger, src) {
+      if (this.sec.state === "triggered") return;
+      this.sec.trigger = trigger;
+      this.secSet("triggered", src, Date.now() + SECURITY.alarmDuration * 1000);
+      this.sec.nextRepeat = Date.now() + SECURITY.repeatNotify * 1000;
+      this.notify("critical", `BÁO ĐỘNG: ${trigger.name} lúc ${new Date().toLocaleTimeString("vi-VN")}!`, "security");
+      this.run(SECURITY.onTrigger, {}, "security");
+    }
+    secTick() {
+      const s = this.sec, now = Date.now();
+      if (s.lockedUntil && now >= s.lockedUntil) { s.lockedUntil = 0; this.secPublish(); }
+      if (s.state === "arming" && now >= s.deadline) {
+        this.secSet("armed_away", "exit_delay");
+        this.notify("info", "An ninh đã bật — đang canh gác nhà", "security");
+      } else if (s.state === "pending" && now >= s.deadline) {
+        this.secTrigger(s.trigger || { device: null, name: "Cửa" }, "entry_delay");
+      } else if (s.state === "triggered") {
+        if (now >= s.deadline) {
+          const back = { away: "armed_away", night: "armed_night" }[s.armMode] || "disarmed";
+          this.secSet(back, "alarm_duration");
+          this.notify("warn", "Hết thời gian báo động" + (back !== "disarmed" ? " — hệ thống tiếp tục canh gác" : ""), "security");
+        } else if (now >= s.nextRepeat) {
+          s.nextRepeat = now + SECURITY.repeatNotify * 1000;
+          this.notify("critical", `Vẫn đang BÁO ĐỘNG (${s.trigger ? s.trigger.name : "?"}) — chưa ai tắt`, "security");
+        }
+      }
     }
     notify(level, text, source) { this.deliver(`${this.p}/_auto/notify/event`, { level, text, source, ts: Date.now() }); }
     engineStatus(retain = false) {
@@ -492,6 +625,7 @@
       this.warmUntil = now + 3000;
       this.engineStatus(true);
       this.deliver(`${this.p}/_auto/mode/state`, { mode: this.mode, ts: now }, true);
+      this.secPublish(true);
       for (const d of this.devices) { this.status(d, "online", null, true); this.report(d, true); }
       let last = Date.now();
       this.timers.push(setInterval(() => { const t = Date.now(); this.tick((t - last) / 1000); last = t; }, 1000));

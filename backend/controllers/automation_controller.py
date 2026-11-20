@@ -4,16 +4,20 @@ Controller của automation engine: giữ MQTT client, nhận message, chuyển 
   Subscribe : home/+/+/status, home/+/+/state        discovery + trạng thái thiết bị
               home/_auto/+/set                        đổi chế độ, chạy scene, bật/tắt luật
               home/_auto/mode/state                   khôi phục chế độ đã lưu (retained)
+              home/_auto/security/state               khôi phục trạng thái an ninh (retained)
   Publish   : home/<phòng>/<thiết bị>/set              lệnh điều khiển (QoS 1)
               home/_auto/engine/status   retained     danh sách luật + scene, LWT
               home/_auto/mode/state      retained     chế độ nhà: home | away | night
+              home/_auto/security/state  retained     an ninh: disarmed | arming | armed_away | armed_night | pending | triggered
               home/_auto/notify/event                 thông báo / cảnh báo cho dashboard
 
 Ví dụ:
   python backend/run_automation.py
   python backend/run_automation.py --host 192.168.1.10 --rules my_rules.json
+  python backend/run_automation.py --set-pin          # đổi mã PIN tắt an ninh rồi thoát
 """
 import argparse
+import getpass
 import json
 import os
 import signal
@@ -21,9 +25,10 @@ import sys
 import time
 
 from backend.common.cli import add_mqtt_args
-from backend.common.mqtt_client import new_client
+from backend.common.mqtt_client import broker_label, new_client
 from backend.common.paths import CONFIG_DIR
 from backend.services.automation_service import AutomationService
+from backend.services.security_service import save_pin
 
 
 class AutomationController:
@@ -31,8 +36,9 @@ class AutomationController:
         self.args = args
         self.stopping = False
         self.client = new_client(args.client_id, clean_session=True,
-                                 username=args.username, password=args.password)
-        self.service = AutomationService(args.prefix, args.rules, args.scenes, publish=self.client.publish)
+                                 username=args.username, password=args.password, tls=args.tls, cafile=args.cafile)
+        self.service = AutomationService(args.prefix, args.rules, args.scenes, publish=self.client.publish,
+                                         security_path=args.security)
         # Engine cũng có LWT: dashboard biết ngay khi "bộ não" ngừng hoạt động
         self.client.will_set(self.service.t_engine, json.dumps({"state": "offline", "reason": "lwt"}),
                              qos=1, retain=True)
@@ -46,13 +52,14 @@ class AutomationController:
             print(f"Kết nối thất bại: {reason_code}")
             return
         svc = self.service
-        print(f"Đã kết nối {self.args.host}:{self.args.port} — {len(svc.rules)} luật, {len(svc.scenes)} kịch bản")
+        print(f"Đã kết nối {broker_label(self.args)} — {len(svc.rules)} luật, {len(svc.scenes)} kịch bản")
         client.subscribe([
             (f"{svc.p}/+/+/status", 1),
             (f"{svc.p}/+/+/state", 1),
             (f"{svc.p}/_auto/+/set", 1),
             (svc.t_mode, 1),
             (svc.t_locked, 1),
+            (svc.t_security, 1),
         ])
         svc.begin_warmup()
 
@@ -94,11 +101,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--client-id", default="automation-engine")
     p.add_argument("--rules", default=os.path.join(CONFIG_DIR, "rules.json"))
     p.add_argument("--scenes", default=os.path.join(CONFIG_DIR, "scenes.json"))
+    p.add_argument("--security", default=os.path.join(CONFIG_DIR, "security.json"))
+    p.add_argument("--set-pin", action="store_true", help="đổi mã PIN tắt an ninh (ghi vào --security) rồi thoát")
     return p
+
+
+def set_pin(path: str) -> None:
+    pin = getpass.getpass("Mã PIN mới (4–8 chữ số): ")
+    if pin != getpass.getpass("Nhập lại: "):
+        sys.exit("Hai lần nhập không khớp")
+    try:
+        save_pin(path, pin)
+    except ValueError as e:
+        sys.exit(str(e))
+    print(f"Đã lưu PIN mới vào {path} (dạng băm PBKDF2). Khởi động lại automation để áp dụng.")
 
 
 def main():
     args = build_parser().parse_args()
+    if args.set_pin:
+        set_pin(args.security)
+        return
     controller = AutomationController(args)
 
     def stop(*_):

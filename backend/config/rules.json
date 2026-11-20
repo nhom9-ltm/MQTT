@@ -44,33 +44,6 @@
     ]
   },
   {
-    "id": "intrusion_door",
-    "name": "Cửa mở khi vắng nhà / ban đêm → báo động",
-    "description": "Bật toàn bộ đèn và gửi cảnh báo",
-    "enabled": true,
-    "house_id": 1,
-    "trigger": {"device": "entrance/door", "field": "open", "op": "==", "value": true},
-    "conditions": [{"mode": ["away", "night"]}],
-    "actions": [
-      {"notify": "Cửa chính bị mở khi đang ở chế độ an ninh!", "level": "critical"},
-      {"type": "light", "set": {"on": true, "brightness": 100}}
-    ]
-  },
-  {
-    "id": "intrusion_motion",
-    "name": "Chuyển động khi vắng nhà → báo động",
-    "description": "Cảm biến chuyển động phòng khách khi không có ai ở nhà",
-    "enabled": true,
-    "house_id": 1,
-    "trigger": {"device": "living/motion", "field": "motion", "op": "==", "value": true},
-    "conditions": [{"mode": ["away"]}],
-    "actions": [
-      {"notify": "Phát hiện chuyển động trong phòng khách khi vắng nhà!", "level": "critical"},
-      {"device": "living/light", "set": {"on": true, "brightness": 100}}
-    ],
-    "cooldown": 60
-  },
-  {
     "id": "living_idle",
     "name": "Không ai trong phòng khách 2 phút → tắt đèn, quạt",
     "description": "Tiết kiệm điện khi không có chuyển động (không áp dụng khi TV đang bật, ví dụ lúc xem phim)",

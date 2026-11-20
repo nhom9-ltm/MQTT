@@ -6,6 +6,8 @@ Controller HTTP của API lịch sử — nhận request, gọi history_service,
     python backend/run_api.py                                         # tương đương
     HISTORY_DB=backend/data/demo_history.db python backend/run_api.py      # dùng dữ liệu mẫu
 """
+from typing import Optional
+
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -14,7 +16,7 @@ from backend.controllers.admin_controller import router as admin_router
 from backend.controllers.auth_controller import router as auth_router
 from backend.controllers.user_device_controller import router as user_device_router
 from backend.repositories.history_repository import DatabaseUnavailable
-from backend.services import history_service
+from backend.services import energy_service, history_service
 
 app = FastAPI(title="Smart Home History API")
 # Dashboard chạy ở cổng khác (8080) nên phải cho phép CORS. Phiên gửi qua header Authorization, không dùng cookie.
@@ -43,6 +45,15 @@ def climate(room: str, hours: int = Query(24, ge=1, le=24 * 30)):
 @app.get("/api/energy")
 def energy(days: int = Query(7, ge=1, le=90)):
     return history_service.energy(days)
+
+
+@app.get("/api/energy/report")
+def energy_report(month: Optional[str] = Query(None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$")):
+    """Tiền điện theo bậc EVN của một tháng (mặc định tháng hiện tại), dự báo cuối tháng và trạng thái ngân sách."""
+    try:
+        return energy_service.month_report(month)
+    except energy_service.EnergyConfigError as e:
+        return JSONResponse(status_code=500, content={"detail": str(e)})
 
 
 @app.get("/api/commands")

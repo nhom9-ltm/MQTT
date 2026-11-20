@@ -82,6 +82,87 @@
                   y2: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "%" } } } } });
   }
 
+  // ---------- Tiền điện theo tháng (GET /api/energy/report) ----------
+  const vnd = (n) => Math.round(n).toLocaleString("vi-VN") + " đ";
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const BUDGET_TEXT = { ok: "trong ngân sách", warn: "sắp chạm / dự báo vượt ngân sách", over: "đã VƯỢT ngân sách" };
+  const pad = (n) => String(n).padStart(2, "0");
+  const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+  $("billMonth").value = thisMonth();
+  $("billMonth").max = thisMonth();
+
+  async function loadBill() {
+    const r = await get(`/api/energy/report?month=${$("billMonth").value || thisMonth()}`);
+    const b = r.budget, p = r.projected;
+    const kp = (value, label, sub = "", cls = "") =>
+      `<div class="kpi"><span class="k-label">${label}</span><span class="k-val ${cls}">${value}</span>${sub ? `<span class="k-sub">${sub}</span>` : ""}</div>`;
+    const cls = { warn: "warn", over: "bad" }[b.status] || "";
+    $("billKpis").innerHTML = [
+      kp(r.kwh.toFixed(1) + " kWh", "Điện đã dùng", r.finished ? "cả tháng" : "tính tới hiện tại"),
+      kp(vnd(r.bill.total), "Tiền điện", `chưa VAT ${vnd(r.bill.subtotal)}`, cls),
+      kp(p ? vnd(p.total) : "—", r.finished ? "Tổng cả tháng" : "Dự báo cuối tháng",
+        p ? `≈ ${p.kwh.toFixed(0)} kWh` : "cần ít nhất 1 giờ dữ liệu", b.status === "warn" && p && p.total >= b.vnd ? "warn" : ""),
+      kp(b.vnd ? vnd(b.vnd) : "Chưa đặt", "Ngân sách", b.vnd ? `${Math.round(b.used_ratio * 100)}% · ${BUDGET_TEXT[b.status]}` : "budget_vnd trong energy.json"),
+    ].join("");
+
+    const box = $("billBudget");
+    box.dataset.status = b.status;
+    const pct = (v) => Math.min(100, b.vnd ? v / b.vnd * 100 : 0) + "%";
+    $("billBarNow").style.width = pct(r.bill.total);
+    $("billBarProj").style.width = pct(p ? p.total : 0);
+    $("billBudgetText").textContent = b.vnd
+      ? `Đã dùng ${vnd(r.bill.total)} / ${vnd(b.vnd)}` + (p && !r.finished ? ` · vạch gạch: dự báo ${vnd(p.total)}` : "")
+      : "";
+
+    // Bậc giá: chỉ hiện các bậc đã dùng tới
+    $("billTiers").innerHTML = r.bill.tiers.map((t) =>
+      `<tr><td>Bậc ${t.tier} <span class="hint">(${t.from}–${t.to ?? "∞"} kWh · ${t.price.toLocaleString("vi-VN")} đ)</span></td>` +
+      `<td class="n">${t.kwh.toFixed(1)} kWh</td><td class="n">${vnd(t.vnd)}</td></tr>`).join("") +
+      `<tr><td>VAT</td><td></td><td class="n">${vnd(r.bill.vat)}</td></tr>` +
+      `<tr class="total"><td>Tổng</td><td class="n">${r.kwh.toFixed(1)} kWh</td><td class="n">${vnd(r.bill.total)}</td></tr>`;
+    $("billDevices").innerHTML = r.by_device.length ? r.by_device.slice(0, 8).map((d) =>
+      `<tr><td class="bill-dev">${esc(d.device)}<span class="bill-share" style="width:${(d.share * 100).toFixed(1)}%"></span></td>` +
+      `<td class="n">${(d.share * 100).toFixed(0)}%</td><td class="n">${vnd(d.vnd)}</td></tr>`).join("")
+      : `<tr><td class="hint">Chưa có thiết bị đo điện trong tháng này</td></tr>`;
+
+    // Biểu đồ: chi phí lũy kế theo ngày + đường dự báo tới cuối tháng + đường ngân sách
+    const [y, m] = r.month.split("-").map(Number);
+    const nDays = new Date(y, m, 0).getDate();
+    const labels = Array.from({ length: nDays }, (_, i) => `${pad(i + 1)}/${pad(m)}`);
+    const cum = new Array(nDays).fill(null);
+    const byDay = Object.fromEntries(r.by_day.map((d) => [+d.day.slice(8), d.cum_vnd]));
+    const days = Object.keys(byDay).map(Number);
+    const last = days.length ? Math.max(...days) - 1 : -1;
+    let carry = 0;
+    for (let i = days.length ? Math.min(...days) : 1; i <= last + 1; i++) {   // ngày thiếu dữ liệu giữ nguyên tổng lũy kế
+      if (byDay[i] != null) carry = byDay[i];
+      cum[i - 1] = carry;
+    }
+    const proj = new Array(nDays).fill(null);
+    if (p && !r.finished && last >= 0) {
+      for (let i = last; i < nDays; i++) proj[i] = cum[last] + (p.total - cum[last]) * (i - last) / (nDays - 1 - last || 1);
+    }
+    if (!r.by_day.length) {
+      empty("cBillCum", "Chưa có dữ liệu điện năng trong tháng này");
+    } else {
+      unempty("cBillCum");
+      const ds = [
+        { label: "Đã dùng", data: cum, borderColor: css("--accent"), backgroundColor: css("--accent"), pointRadius: 2, borderWidth: 2, tension: .2 },
+        { label: "Dự báo", data: proj, borderColor: css("--muted"), borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5 },
+      ];
+      if (b.vnd) ds.push({ label: "Ngân sách", data: labels.map(() => b.vnd), borderColor: css("--bad"),
+        borderDash: [2, 3], pointRadius: 0, borderWidth: 1.5 });
+      draw("cBillCum", { type: "line", data: { labels, datasets: ds }, options: {
+        interaction: { mode: "index", intersect: false }, spanGaps: false,
+        plugins: { tooltip: { callbacks: { label: (c) => c.raw == null ? null : `${c.dataset.label}: ${vnd(c.raw)}` } } },
+        scales: { x: { ticks: { maxTicksLimit: 10 } },
+                  y: { beginAtZero: true, ticks: { callback: (v) => (v / 1000).toLocaleString("vi-VN") + "k" } } } } });
+    }
+    const partial = r.finished && r.by_day.length && r.coverage < 0.9
+      ? `Logger bắt đầu ghi muộn (chỉ phủ ${Math.round(r.coverage * 100)}% tháng) nên số liệu thấp hơn thực tế. ` : "";
+    $("billNote").textContent = partial + "Tiền mỗi thiết bị chia theo tỉ lệ kWh. " + (r.price_note || "");
+  }
+
   async function loadAll() {
     const hours = +el.range.value;
     setPill("wait", "Đang tải…");
@@ -104,6 +185,7 @@
       ].join("");
 
       await loadClimate(hours);
+      await showBill();
       bar("cEnergyDay", energy.by_day.map((x) => x.day.slice(5)), energy.by_day.map((x) => x.kwh), css("--accent"));
       bar("cEnergyDev", energy.by_device.slice(0, 8).map((x) => x.device), energy.by_device.slice(0, 8).map((x) => x.kwh), css("--c-plug"), true);
 
@@ -130,6 +212,18 @@
     }
   }
 
+  // Lỗi riêng của khung tiền điện (ví dụ energy.json sai) không làm hỏng các biểu đồ khác
+  async function showBill() {
+    try {
+      await loadBill();
+    } catch (e) {
+      console.error(e);
+      empty("cBillCum", `Không tải được báo cáo tiền điện: ${esc(e.message)}`);
+      $("billKpis").innerHTML = "";
+    }
+  }
+
+  $("billMonth").addEventListener("change", showBill);
   $("histForm").addEventListener("submit", (e) => { e.preventDefault(); loadAll(); });
   el.range.addEventListener("change", loadAll);
   el.room.addEventListener("change", () => loadClimate(+el.range.value).catch(console.error));

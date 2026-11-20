@@ -14,6 +14,7 @@ import os
 import threading
 import time
 
+from backend.common.mqtt_publish import publish_once
 from backend.repositories import device_repository
 
 PREFIX = os.getenv("MQTT_PREFIX", "home")
@@ -21,15 +22,8 @@ TOPIC = f"{PREFIX}/_admin/locked/state"
 
 
 def _send(payload: str) -> None:
-    try:
-        from paho.mqtt import publish
-        user = os.getenv("MQTT_USER")
-        publish.single(TOPIC, payload, qos=1, retain=True,
-                       hostname=os.getenv("MQTT_HOST", "localhost"), port=int(os.getenv("MQTT_PORT", 1883)),
-                       client_id=f"api-locks-{os.getpid()}",
-                       auth={"username": user, "password": os.getenv("MQTT_PASS")} if user else None)
-    except Exception as e:          # broker chưa chạy / sai mật khẩu: không làm hỏng request của trang quản trị
-        print(f"Không gửi được danh sách thiết bị bị khóa lên broker: {e}")
+    # broker chưa chạy / sai mật khẩu: publish_once chỉ in cảnh báo, không làm hỏng request của trang quản trị
+    publish_once(TOPIC, payload, qos=1, retain=True, client_prefix="api-locks")
 
 
 def publish_locks(wait: bool = False) -> None:

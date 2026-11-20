@@ -7,12 +7,13 @@ venv/
 *.db
 *.db-journal
 *.csv
+backend/data/energy_alerts.json
 
 # Thông tin bí mật — mỗi người tự tạo
 .env
 infra/broker/passwd
 infra/broker/credentials.env
-firmware/esp32/**/secrets.h
+**/secrets.h
 
 # Dữ liệu broker khi chạy không Docker (infra/broker/mosquitto.local.conf)
 infra/broker/data/*
@@ -20,3 +21,7 @@ infra/broker/data/*
 
 # Kịch bản người dùng tự thêm trên dashboard (lưu khi chạy)
 backend/config/scenes.custom.json
+
+# Chứng chỉ TLS — mỗi máy tự tạo bằng: python infra/broker/gen_certs.py (khóa riêng tuyệt đối không đưa lên GitHub)
+infra/broker/certs/
+firmware/esp32/esp32_smarthome_node/ca_cert.h

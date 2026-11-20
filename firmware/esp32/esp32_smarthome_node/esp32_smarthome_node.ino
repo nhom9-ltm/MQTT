@@ -22,6 +22,10 @@
  * con là offline khi bo mạch offline.
  *
  * Lưu ý: PubSubClient chỉ publish QoS 0 (subscribe được QoS 1). LWT vẫn QoS 1 + retain.
+ *
+ * TLS (docs/TLS.md): đặt MQTT_USE_TLS 1 và MQTT_PORT 8883 trong secrets.h, chạy infra/broker/gen_certs.py
+ * để sinh ca_cert.h (CA của nhóm) cạnh file này. ESP32 dùng WiFiClientSecure, kiểm tra chứng chỉ broker
+ * bằng CA đó, nên MQTT_HOST phải là IP / tên có trong chứng chỉ (gen_certs.py --host <IP>).
  */
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -33,6 +37,14 @@
 // WiFi + địa chỉ broker nằm trong secrets.h (không đưa lên git).
 // Lần đầu: copy secrets.example.h thành secrets.h rồi điền thông tin của bạn.
 #include "secrets.h"
+
+#ifndef MQTT_USE_TLS
+#define MQTT_USE_TLS 0                      // secrets.h cũ chưa có dòng này: mặc định không mã hóa
+#endif
+#if MQTT_USE_TLS
+#include <WiFiClientSecure.h>
+#include "ca_cert.h"                        // sinh bởi: python infra/broker/gen_certs.py
+#endif
 
 const char* PREFIX      = "home";
 const char* ROOM        = "lab";
@@ -62,7 +74,11 @@ const uint16_t KEEPALIVE = 10;              // giây
 #define NODE_EVERY_MS     30000
 
 // ---------- biến toàn cục ----------
+#if MQTT_USE_TLS
+WiFiClientSecure net;                       // TLS: mã hóa + kiểm tra chứng chỉ broker bằng MQTT_CA_CERT
+#else
 WiFiClient net;
+#endif
 PubSubClient mqtt(net);
 DHT dht(PIN_DHT, DHT22);
 
@@ -243,6 +259,10 @@ void announceAll() {
 void maintainMqtt() {
   if (mqtt.connected() || millis() - lastMqttTry < 2000) return;
   lastMqttTry = millis();
+#if MQTT_USE_TLS
+  // Chứng chỉ có hạn dùng: chờ NTP cập nhật giờ (tối đa ~15s sau khi khởi động) rồi mới bắt tay TLS
+  if (time(nullptr) < 1700000000 && millis() < 15000) return;
+#endif
   static const char* WILL = "{\"state\":\"offline\",\"reason\":\"lwt\"}";
   Serial.print("MQTT connect...");
   // connect(id, user, pass, willTopic, willQos, willRetain, willMessage, cleanSession)
@@ -278,6 +298,9 @@ void setup() {
 
   connectWiFi();
   configTime(0, 0, "pool.ntp.org", "time.google.com");     // timestamp cho payload
+#if MQTT_USE_TLS
+  net.setCACert(MQTT_CA_CERT);
+#endif
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setKeepAlive(KEEPALIVE);
   mqtt.setBufferSize(512);

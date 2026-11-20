@@ -227,7 +227,8 @@
   // ---------------- broker (dùng chung) ----------------
   const qs = new URLSearchParams(location.search);
   const PREFIX = "home";
-  const BROKER = qs.get("broker") || `${location.protocol === "https:" ? "wss" : "ws"}://${location.hostname || "localhost"}:9001`;
+  const BROKER = window.Session ? window.Session.brokerUrl() : qs.get("broker") ||
+    `${location.protocol === "https:" ? "wss" : "ws"}://${location.hostname || "localhost"}:9001`;
   const live = new Map();         // "phòng/mã" -> payload status mới nhất
 
   function setBroker(kind, text) {
@@ -241,7 +242,7 @@
       clientId: "admin-" + Math.random().toString(16).slice(2, 8), clean: true, reconnectPeriod: 3000, connectTimeout: 5000,
     });
     client.on("connect", () => {
-      setBroker("on", "Broker: đã kết nối");
+      setBroker("on", BROKER.startsWith("wss:") ? "Broker: đã kết nối · TLS" : "Broker: đã kết nối");
       client.subscribe([`${PREFIX}/+/+/status`, `${PREFIX}/_auto/notify/event`], { qos: 1 });
     });
     client.on("reconnect", () => setBroker("wait", "Broker: đang kết nối lại…"));

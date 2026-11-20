@@ -21,7 +21,7 @@ import random
 import socket
 import time
 
-from backend.common.mqtt_client import new_client
+from backend.common.mqtt_client import broker_label, new_client
 
 FW = "sim-2.0.0"
 
@@ -52,6 +52,8 @@ LOCAL_IP = local_ip()
 class Device:
     TYPE = "generic"
     REPORT = False          # True: publish state định kỳ (cảm biến, thiết bị đo điện)
+
+    WATCH_MODE = False      # True: subscribe thêm chế độ nhà (home/_auto/mode/state)
 
     def __init__(self, house: "House", room: str, room_name: str, dev_id: str, name: str, **opts):
         self.house = house
@@ -93,7 +95,8 @@ class Device:
     # ---------- MQTT ----------
     def build_client(self):
         c = new_client(f"sim-{self.room}-{self.id}-{os.getpid()}", clean_session=True,
-                       username=self.args.username, password=self.args.password)
+                       username=self.args.username, password=self.args.password,
+                       tls=self.args.tls, cafile=self.args.cafile)
         # LAST WILL — đặt TRƯỚC connect(). Broker chỉ phát khi thiết bị mất kết nối bất thường.
         c.will_set(self.t_status, json.dumps({"state": "offline", "reason": "lwt"}), qos=1, retain=True)
         c.on_connect = self.on_connect
@@ -112,17 +115,23 @@ class Device:
             self.log(f"Kết nối thất bại: {reason_code}")
             return
         if self.args.verbose:
-            self.log(f"Đã kết nối {self.args.host}:{self.args.port}")
+            self.log(f"Đã kết nối {broker_label(self.args)}")
         with self.house.lock:
             self.publish_status("online")     # ghi đè thông điệp offline/LWT cũ (retained)
             self.publish_state(quiet=True)
         client.subscribe(self.t_set, qos=1)
+        if self.WATCH_MODE:
+            client.subscribe(self.house.t_mode, qos=1)
 
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
         if not self.house.stopping and not self.dead_until:
             self.log(f"Mất kết nối ({reason_code}) — paho tự reconnect...")
 
     def on_message(self, client, userdata, msg):
+        if self.WATCH_MODE and msg.topic == self.house.t_mode:
+            with self.house.lock:
+                self.house.on_mode(msg.payload)
+            return
         if msg.topic != self.t_set:         # phòng thủ: chỉ nhận lệnh đúng topic của mình
             return
         try:
@@ -446,6 +455,7 @@ class Motion(Device):
     """Cảm biến chuyển động PIR: báo motion=true, tự về false sau HOLD giây không có chuyển động."""
     TYPE = "motion"
     HOLD = 15
+    WATCH_MODE = True       # vắng nhà = không có người -> không có chuyển động ngẫu nhiên (tránh báo động giả)
 
     def initial_state(self):
         self.last = 0.0
@@ -456,7 +466,8 @@ class Motion(Device):
         self.state.update(motion=True, last_motion=now_ms())
 
     def update(self, dt, now):
-        if not self.args.no_random and random.random() < self.opts.get("rate", 0.01) * dt:
+        nobody_home = self.house.mode == "away"
+        if not self.args.no_random and not nobody_home and random.random() < self.opts.get("rate", 0.01) * dt:
             was = self.state["motion"]
             self.trigger()
             return not was

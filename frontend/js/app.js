@@ -12,7 +12,8 @@
 
   // ---------------- cấu hình ----------------
   const qs = new URLSearchParams(location.search);
-  const DEFAULT_URL = qs.get("broker") ||
+  // ws://<máy>:9001, hoặc wss://<máy>:8443 khi mở với ?tls=1 (js/session.js, docs/TLS.md)
+  const DEFAULT_URL = window.Session ? window.Session.brokerUrl() : qs.get("broker") ||
     `${location.protocol === "https:" ? "wss" : "ws"}://${location.hostname || "localhost"}:9001`;
   const KEEPALIVE = 30;
   const HISTORY_MS = 30 * 60 * 1000;
@@ -133,7 +134,9 @@
     state.client = client;
 
     client.on("connect", () => {
-      setPill(el.pill, "on", "Đã kết nối");
+      const tls = el.url.value.trim().startsWith("wss:");
+      setPill(el.pill, "on", tls ? "Đã kết nối · TLS" : "Đã kết nối");
+      el.pill.title = el.url.value.trim() + (tls ? " — kênh WebSocket được mã hóa TLS" : " — chưa mã hóa (mở ?tls=1 để dùng TLS)");
       el.btnConnect.textContent = "Ngắt";
       // Mọi topic của hệ thống đều có đúng 4 cấp: + khớp đúng 1 cấp
       client.subscribe(`${state.prefix}/+/+/+`, { qos: 1 });
@@ -142,7 +145,9 @@
       client.publish(willTopic, JSON.stringify({ state: "online", ts: Date.now() }), { qos: 1 });
     });
     client.on("reconnect", () => setPill(el.pill, "wait", "Đang kết nối lại…"));
-    client.on("offline", () => setPill(el.pill, "off", "Mất kết nối broker"));
+    // wss:// lỗi thường do trình duyệt chưa tin CA của nhóm hoặc broker chưa mở cổng 8443 (docs/TLS.md)
+    client.on("offline", () => setPill(el.pill, "off",
+      el.url.value.trim().startsWith("wss:") ? "Mất kết nối broker TLS (đã cài CA, mở cổng 8443?)" : "Mất kết nối broker"));
     client.on("error", (err) => setPill(el.pill, "off", "Lỗi: " + (err.message || err)));
     client.on("message", (topic, payload, packet) => {
       handleMessage(topic, payload.toString(), { qos: packet.qos, retain: packet.retain });
@@ -177,7 +182,8 @@
   function handleMessage(topic, text, meta = {}) {
     if (!meta.silent) {
       state.rxTimes.push(Date.now());
-      logMessage(topic, text, meta);
+      // Không hiện mã PIN tắt an ninh trong Message log (lệnh home/_auto/security/set)
+      logMessage(topic, text.replace(/("pin"\s*:\s*)"[^"]*"/g, '$1"***"'), meta);
     }
     if (topic.startsWith("$SYS/")) return handleSys(topic, text);
 
@@ -323,6 +329,8 @@
     } else if (what === "mode" && kind === "state") {
       state.mode = d.mode;
       renderMode();
+    } else if (what === "security" && kind === "state") {
+      window.dispatchEvent(new CustomEvent("sh:security", { detail: d }));     // js/security.js vẽ khung An ninh
     } else if (what === "notify" && kind === "event") {
       const lvl = { critical: "bad", warn: "warn", info: "info", rule: "rule" }[d.level] || "info";
       if (lvl === "bad" && !meta.retain) toast("bad", d.text);    // toast tự thêm vào danh sách
@@ -401,6 +409,7 @@
     el.sceneTopic.textContent = `${state.prefix}/_auto/scene/set`;
     el.dashWill.textContent = `${state.prefix}/_dashboard/${state.clientId}/status`;
     renderTabs(); renderEngine(); renderMode(); updateKpis(); scheduleCharts();
+    window.dispatchEvent(new CustomEvent("sh:security", { detail: null }));    // mất kết nối: chưa biết trạng thái an ninh
   }
 
   function effStatus(dev) {
@@ -868,7 +877,10 @@
 
   el.modeSeg.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-mode]");
-    if (b && !b.disabled) send(`${state.prefix}/_auto/mode/set`, { mode: b.dataset.mode });
+    if (!b || b.disabled) return;
+    // Đang canh gác: đổi chế độ phải nhập PIN trước (js/security.js mở hộp nhập PIN và tự gửi lệnh)
+    if (window.SmartHomeSecurity && window.SmartHomeSecurity.interceptMode(b.dataset.mode)) return;
+    send(`${state.prefix}/_auto/mode/set`, { mode: b.dataset.mode });
   });
   el.scenes.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-scene]");

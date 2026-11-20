@@ -1,0 +1,51 @@
+/* An ninh: khung trạng thái trong panel Chế độ, banner báo động, hộp nhập PIN (js/security.js).
+ * Chỉ dùng biến màu có sẵn trong style.css nên tự đúng ở chế độ sáng/tối. */
+
+/* ---------- khung trạng thái ---------- */
+.sec-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); }
+.sec-status { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sec-status b { display: block; font-size: 13px; }
+.sec-status small { display: block; font-size: 11px; color: var(--muted); }
+.sec-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.sec-actions { display: flex; gap: 6px; }
+
+.sec-box[data-state="disarmed"] .sec-dot { background: var(--muted); }
+.sec-box[data-state="arming"] .sec-dot { background: var(--warn); animation: sec-blink 1s steps(2) infinite; }
+.sec-box[data-state="armed_away"] .sec-dot,
+.sec-box[data-state="armed_night"] .sec-dot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+.sec-box[data-state="armed_away"], .sec-box[data-state="armed_night"] { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.sec-box[data-state="pending"] { border-color: var(--warn); }
+.sec-box[data-state="pending"] .sec-dot { background: var(--warn); animation: sec-blink .6s steps(2) infinite; }
+.sec-box[data-state="triggered"] { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--bg-2)); }
+.sec-box[data-state="triggered"] .sec-dot { background: var(--bad); animation: sec-blink .4s steps(2) infinite; }
+.sec-box[data-state="triggered"] b { color: var(--bad); }
+
+/* ---------- banner báo động (mọi trang) ---------- */
+.sec-banner { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding: 10px 24px; background: var(--warn); color: #1a1300; font-weight: 600; font-size: 14px; }
+.sec-banner[hidden] { display: none; }
+.sec-banner[data-state="triggered"] { background: var(--bad); color: #fff; animation: sec-flash 1s ease-in-out infinite; }
+.sec-banner-text { flex: 1; min-width: 0; }
+.sec-banner .btn { background: rgba(255, 255, 255, .92); color: #1a1300; border-color: transparent; }
+
+/* ---------- hộp nhập PIN ---------- */
+.pin-dialog { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--text);
+  padding: 20px; width: min(300px, calc(100vw - 32px)); }
+.pin-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+.pin-dialog h3 { margin: 0 0 4px; font-size: 16px; }
+.pin-dialog .muted { margin: 0 0 12px; }
+.pin-dialog input { width: 100%; box-sizing: border-box; text-align: center; letter-spacing: .5em; font: 600 22px var(--mono);
+  padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.pin-pad button { padding: 12px 0; font: 600 18px var(--mono); border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg-2); color: var(--text); cursor: pointer; }
+.pin-pad button:hover { border-color: var(--accent); }
+.pin-pad .pin-ok { background: var(--accent); border-color: var(--accent); color: #062420; }
+.pin-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+@keyframes sec-blink { 50% { opacity: .25; } }
+@keyframes sec-flash { 50% { filter: brightness(1.25); } }
+@media (prefers-reduced-motion: reduce) {
+  .sec-dot, .sec-banner { animation: none !important; }
+}

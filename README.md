@@ -179,6 +179,8 @@ wildcard: **`home/+/+/+`**.
 | `home/_auto/mode/set` | → engine | 1 | ✘ | `{"mode":"night"}` |
 | `home/_auto/scene/set` | → engine | 1 | ✘ | `{"scene":"sleep"}` |
 | `home/_auto/rule/set` | → engine | 1 | ✘ | `{"id":"gas_leak","enabled":false}` |
+| `home/_auto/security/state` | engine → | 1 | ✔ | `{"state":"armed_away","remaining":null,"trigger":null}` — xem [AN_NINH.md](docs/AN_NINH.md) |
+| `home/_auto/security/set` | → engine | 1 | ✘ | `{"action":"disarm","pin":"1234"}` · `{"action":"panic"}` |
 | `home/_auto/notify/event` | engine → | 1 | ✘ | `{"level":"critical","text":"Phát hiện khí gas…"}` |
 
 **Lệnh dùng giá trị tuyệt đối** (`{"on":true}`), không dùng `toggle`. Lý do: QoS 1 có thể giao một message
@@ -205,6 +207,7 @@ mà nó không hiểu.
 | **Tách rời publisher / subscriber** | automation chỉ là một client như bao client khác | Tắt automation: thiết bị và dashboard vẫn chạy, chỉ mất luật tự động |
 | **$SYS** | `sys_interval 5` | Ô KPI *Client trên broker* |
 | **Xác thực & ACL** | `infra/broker/acl.conf` | Dashboard chỉ được ghi `…/set`, không thể giả mạo `state` của thiết bị |
+| **Mã hóa TLS** | cổng 8883 (MQTT/TLS), 8443 (`wss://`) — [docs/TLS.md](docs/TLS.md) | Wireshark: cổng 1883 đọc được cả PIN, cổng 8883 chỉ thấy `TLS Application Data` |
 
 > **Vì sao ESP32 cần "node"?** Mỗi kết nối MQTT chỉ khai báo được **một** Last Will. ESP32 dùng một kết nối
 > cho 6 thiết bị, nên LWT gắn với bo mạch. Dashboard và automation coi một thiết bị con là offline khi bo
@@ -246,8 +249,7 @@ Trong `notify`, có thể chèn giá trị từ thiết bị đã kích hoạt l
 | Phòng khách nóng | > 31°C, đang ở nhà, điều hòa tắt | Bật điều hòa 26°C |
 | Rò rỉ gas | Cảm biến gas báo động | Ngắt bếp điện, bật quạt hút số 3, cảnh báo đỏ |
 | Đèn hiên | Có chuyển động ở lối vào, 17:30–06:00 | Bật đèn hiên 2 phút |
-| Xâm nhập (cửa) | Cửa mở khi *Vắng nhà* / *Ban đêm* | Cảnh báo đỏ, bật toàn bộ đèn |
-| Xâm nhập (chuyển động) | Có chuyển động ở phòng khách khi *Vắng nhà* | Cảnh báo đỏ, bật đèn phòng khách |
+| Xâm nhập | Do **hệ thống an ninh** xử lý (không còn là luật): cửa mở → chờ nhập PIN, chuyển động khi vắng nhà → báo động ngay | Cảnh báo đỏ, bật toàn bộ đèn — xem [AN_NINH.md](docs/AN_NINH.md) |
 | Tiết kiệm điện | Phòng khách không có chuyển động 2 phút, **và TV đang tắt** (đang xem TV/phim thì không tắt) | Tắt đèn và quạt |
 | Quên khóa cửa | 23:00, cửa chưa khóa | Tự khóa cửa, cảnh báo |
 | [ESP32] Lab nóng / mát | > 30°C / < 29°C | Bật / tắt relay quạt (chênh 1°C để relay không bật tắt liên tục) |
@@ -356,7 +358,7 @@ python backend/run_automation.py --host test.mosquitto.org --prefix nhom7_home
 | 2 | **Discovery & retained** (1') | Chạy `backend/run_simulator.py`: các phòng tự xuất hiện. F5 dashboard: trạng thái hiện ngay (Retain ✓). |
 | 3 | **Điều khiển 2 chiều** (1.5') | Bật đèn, kéo độ sáng, chỉnh điều hòa; chỉ trên Message log `…/set` (vàng) rồi đến `…/state`. Bấm nút BOOT trên ESP32: dashboard cập nhật theo. |
 | 4 | **Automation** (2') | Bấm **Nắng nóng** ở phòng khách: điều hòa tự bật, nhiệt độ hạ dần trên biểu đồ. Bấm **Rò rỉ gas**: cảnh báo đỏ, bếp ngắt, quạt hút bật. Với ESP32: nắm tay vào DHT22, relay quạt đóng. |
-| 5 | **Kịch bản & chế độ** (1.5') | **Ra khỏi nhà**: mọi thứ tắt, cửa khóa, chuyển *Vắng nhà*. Bấm **Mở cửa**: báo động xâm nhập, toàn bộ đèn bật. |
+| 5 | **Kịch bản & an ninh** (1.5') | **Ra khỏi nhà**: mọi thứ tắt, cửa khóa, chuyển *Vắng nhà*, an ninh đếm ngược rồi canh gác. Bấm **Mở cửa**: hộp nhập PIN hiện ra; không nhập kịp → **BÁO ĐỘNG**, toàn bộ đèn bật. Nhập PIN `1234` → tắt, tự chạy *Về nhà*. |
 | 6 | **LWT** (1.5') | **Mất điện** một thiết bị: *Offline · LWT* rồi tự online lại. Rút điện ESP32: cả phòng Lab offline. Ctrl+C automation: dashboard thấy engine offline. |
 | 7 | **Persistent session** (1') | Tắt logger 30 giây, bật lại: `session_present=True` và `↺ nhận bù`. Kết thúc bằng `backend/run_logger.py --report`. |
 
@@ -383,7 +385,7 @@ một tab `?demo=1` để dự phòng.
 
 ## 11. Hướng mở rộng
 
-- **Bảo mật:** bật xác thực + ACL (`infra/broker/acl.conf` có sẵn quyền cho từng loại client); bật TLS (8883 / wss 8443) bằng chứng chỉ tự ký.
+- **Bảo mật:** bật xác thực + ACL (`infra/broker/acl.conf` có sẵn quyền cho từng loại client); TLS (8883 / wss 8443) bằng chứng chỉ tự ký **đã có**, xem [docs/TLS.md](docs/TLS.md).
 - **Dữ liệu:** nạp `backend/data/smarthome.db` (các view `climate`, `energy`, `commands`) vào Grafana; hoặc thay SQLite bằng InfluxDB.
 - **MQTT v5:** message expiry cho lệnh; response topic để thiết bị xác nhận lệnh; shared subscription `$share/loggers/home/#` để chạy nhiều logger song song.
 - **Tích hợp:** chuyển `status` sang định dạng MQTT Discovery để Home Assistant tự nhận thiết bị.

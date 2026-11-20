@@ -19,7 +19,7 @@ import signal
 import sys
 
 from backend.common.cli import add_mqtt_args
-from backend.common.mqtt_client import new_client
+from backend.common.mqtt_client import broker_label, new_client
 from backend.common.paths import DEFAULT_DB
 from backend.repositories.message_repository import TABLES, open_db
 from backend.services import logger_service
@@ -77,7 +77,7 @@ def main():
         service.record(room, device, kind, text, data, msg.qos, msg.retain)
 
     client = new_client(args.client_id, clean_session=False,          # <-- PERSISTENT SESSION
-                        username=args.username, password=args.password)
+                        username=args.username, password=args.password, tls=args.tls, cafile=args.cafile)
     client.on_connect = on_connect
     client.on_message = on_message
 
@@ -90,7 +90,7 @@ def main():
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
 
-    print(f"Logger -> {args.db}")
+    print(f"Logger {broker_label(args)} -> {args.db}")
     client.connect_async(args.host, args.port, keepalive=30)
     client.loop_forever(retry_first_connection=True)
 

@@ -8,9 +8,20 @@ Ghi lại:
   notify  cảnh báo của automation engine
 """
 import json
+import re
 import time
 
 from backend.repositories import message_repository as repo
+
+
+PIN_RE = re.compile(r'("pin"\s*:\s*)"[^"]*"')
+
+
+def redact(text: str, data: dict) -> tuple[str, dict]:
+    """Không lưu / in mã PIN tắt an ninh (lệnh home/_auto/security/set) vào lịch sử."""
+    if isinstance(data, dict) and "pin" in data:
+        return PIN_RE.sub(r'\1"***"', text), {**data, "pin": "***"}
+    return text, data
 
 
 class LoggerService:
@@ -22,6 +33,7 @@ class LoggerService:
     def record(self, room: str, device: str, kind: str, text: str, data: dict, qos: int, retained: bool):
         if kind == "event":
             kind = "notify"
+        text, data = redact(text, data)
         now = int(time.time() * 1000)
         repo.insert_message(self.db, now, data.get("ts"), room, device, kind, text, qos, int(retained))
         self.n += 1
