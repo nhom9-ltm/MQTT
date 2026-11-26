@@ -129,11 +129,25 @@ Hoặc chạy hết trong Docker: `docker compose --profile full up -d`, xem log
 ## C. Chế độ Demo (dự phòng, không cần broker)
 
 **Link công khai:** <https://nhom9-ltm.github.io/MQTT/> — mở là tự chạy Demo, mỗi người một ngôi nhà
-giả lập riêng. Link tự cập nhật mỗi khi có thay đổi trong `frontend/` được push lên `main`.
+giả lập riêng. Link tự cập nhật mỗi khi `frontend/` hoặc `backend/config/` thay đổi trên `main`.
+
+Bản công khai không có máy chủ nên **cả broker lẫn API đều được giả lập trong trình duyệt**, dùng được đầy đủ:
+
+| Trang | Trên link công khai |
+|---|---|
+| Bảng điều khiển | Mở là chạy, không cần đăng nhập (20 thiết bị, luật, kịch bản, an ninh) |
+| Đăng nhập / Đăng ký | `user1@gmail.com` / `User@1`, `admmqtt@gmail.com` / `Admin@1`; đăng ký có OTP giả lập |
+| Lịch sử + Tiền điện | Số liệu mẫu ~70 ngày, sinh tự động theo giờ hiện tại |
+| Trang quản trị | Tài khoản, vai trò, thiết bị, luật, lịch sử đăng nhập; trạng thái online lấy từ broker giả lập |
+
+API giả lập nằm ở `frontend/mock/api.js` (cùng đường dẫn, cùng JSON với `backend/run_api.py`). Dữ liệu thêm/sửa chỉ lưu
+trong trình duyệt của người xem (localStorage); mở link với `?mockreset=1` để về lại dữ liệu mẫu. Luật, kịch bản và giá
+điện được workflow chép từ `backend/config/` khi đưa lên Pages.
 
 Trên máy mình: đăng nhập bằng tài khoản `user` rồi bấm nút **Demo** trên thanh trên (hoặc mở `index.html?demo=1`). Broker,
-20 thiết bị và automation đều được giả lập ngay trong trình duyệt. Trang quản trị không có chế độ Demo. Cần Internet để tải thư viện MQTT.js
-và Chart.js.
+20 thiết bị và automation đều được giả lập ngay trong trình duyệt. Muốn thử cả API giả lập trên máy (không cần
+`run_api.py`, Docker): mở `login.html?mockapi=1`, rồi `?mockapi=0` để quay lại API thật. Cần Internet để tải thư viện
+MQTT.js và Chart.js.
 
 ---
 

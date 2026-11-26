@@ -641,5 +641,8 @@
     }
   }
 
+  // mock/api.js dùng làm dữ liệu dự phòng cho trang quản trị khi không đọc được mock/data/*.json
+  SmartHomeDemo.RULES = RULES;
+  SmartHomeDemo.SCENES = SCENES;
   window.SmartHomeDemo = SmartHomeDemo;
 })();

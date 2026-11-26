@@ -236,7 +236,26 @@
     $("brokerPill").querySelector("span").textContent = text;
   }
 
+  function onMessage(topic, payload) {
+    const [, room, code, kind] = topic.split("/");
+    if (room === "_auto" && code === "notify") {
+      try { emit("admin:notify", JSON.parse(payload.toString())); } catch { /* bỏ qua message hỏng */ }
+      return;
+    }
+    if (kind !== "status" || !room || room.startsWith("_")) return;   // _dashboard, _auto, $SYS: không phải thiết bị
+    const key = `${room}/${code}`;
+    if (!payload.length) live.delete(key);                       // retained bị xóa: thiết bị bị gỡ
+    else { try { live.set(key, JSON.parse(payload.toString())); } catch { return; } }
+    emit("admin:status", key);
+  }
+
   function connectBroker() {
+    // Bản công khai GitHub Pages: không có broker -> chạy bộ giả lập nhà (mock/demo.js) ngay trong trang
+    if (window.Session && Session.mock && window.SmartHomeDemo && !qs.get("broker")) {
+      new window.SmartHomeDemo(PREFIX, onMessage).start();
+      setBroker("on", "Broker: giả lập trong trình duyệt");
+      return;
+    }
     if (typeof mqtt === "undefined") { setBroker("off", "Không tải được MQTT.js"); return; }
     const client = mqtt.connect(BROKER, {
       clientId: "admin-" + Math.random().toString(16).slice(2, 8), clean: true, reconnectPeriod: 3000, connectTimeout: 5000,
@@ -247,18 +266,7 @@
     });
     client.on("reconnect", () => setBroker("wait", "Broker: đang kết nối lại…"));
     client.on("offline", () => setBroker("off", "Broker: chưa chạy"));
-    client.on("message", (topic, payload) => {
-      const [, room, code, kind] = topic.split("/");
-      if (room === "_auto" && code === "notify") {
-        try { emit("admin:notify", JSON.parse(payload.toString())); } catch { /* bỏ qua message hỏng */ }
-        return;
-      }
-      if (kind !== "status" || room.startsWith("_")) return;      // _dashboard, _auto: không phải thiết bị
-      const key = `${room}/${code}`;
-      if (!payload.length) live.delete(key);                       // retained bị xóa: thiết bị bị gỡ
-      else { try { live.set(key, JSON.parse(payload.toString())); } catch { return; } }
-      emit("admin:status", key);
-    });
+    client.on("message", onMessage);
   }
 
   /* online / offline / unknown (chưa từng thấy trên broker). Thiết bị con của bo mạch offline theo bo mạch. */
