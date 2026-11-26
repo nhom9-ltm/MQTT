@@ -1,11 +1,12 @@
-# Đưa dashboard/ lên GitHub Pages -> https://nhom9-ltm.github.io/MQTT/
-# Chạy lại mỗi khi có thay đổi trong dashboard/ được push lên main.
+# Đưa frontend/ lên GitHub Pages -> https://nhom9-ltm.github.io/MQTT/
+# Chạy lại mỗi khi frontend/ hoặc cấu hình luật / kịch bản / giá điện thay đổi trên main.
+# Bản trên Pages không có máy chủ: broker và API được giả lập trong trình duyệt (mock/demo.js, mock/api.js).
 name: Deploy dashboard
 
 on:
   push:
     branches: [main]
-    paths: ["frontend/**", ".github/workflows/pages.yml"]
+    paths: ["frontend/**", "backend/config/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -26,6 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # API giả lập đọc luật, kịch bản, biểu giá điện từ đây (cùng nội dung với backend/config, không chép tay)
+      - name: Chép cấu hình cho API giả lập
+        run: |
+          mkdir -p frontend/mock/data
+          cp backend/config/rules.json backend/config/scenes.json backend/config/energy.json frontend/mock/data/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend

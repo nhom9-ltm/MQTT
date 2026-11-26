@@ -32,6 +32,11 @@
   };
 
   if (qs.get("api")) store.set("sh.api", qs.get("api"));
+  // Bản công khai trên GitHub Pages: không có broker và API riêng -> giả lập cả hai trong trình duyệt
+  const publicDemo = location.hostname.endsWith("github.io") && !qs.get("broker");
+  // API giả lập (mock/api.js): mặc định bật trên GitHub Pages; ?mockapi=1 / ?mockapi=0 để bật / tắt khi thử trên máy
+  if (qs.has("mockapi")) store.set("sh.mockapi", qs.get("mockapi") === "1" ? "1" : "0");
+  const mock = !!window.MockApi && (store.get("sh.mockapi") ? store.get("sh.mockapi") === "1" : publicDemo);
   const web = location.protocol === "http:" || location.protocol === "https:";
   const apiBase = (store.get("sh.api") || (web ? `${location.protocol}//${location.hostname}:8011` : "http://localhost:8011"))
     .replace(/\/$/, "");
@@ -58,6 +63,7 @@
   async function api(path, options = {}) {
     const headers = { ...(options.headers || {}) };
     if (token()) headers.Authorization = `Bearer ${token()}`;
+    if (mock) return window.MockApi.fetch(path, { ...options, headers });
     return fetch(apiBase + path, { ...options, headers });
   }
 
@@ -66,11 +72,18 @@
     toLogin();
   }
 
-  window.Session = { api, save, clear, token, user, homeOf, logout, toLogin, brokerUrl };
+  window.Session = { api, save, clear, token, user, homeOf, logout, toLogin, brokerUrl, mock, publicDemo };
 
-  // Bản công khai trên GitHub Pages không có API để đăng nhập nên bỏ qua kiểm tra
-  const publicDemo = location.hostname.endsWith("github.io") && !qs.get("broker");
-  if (!guard || (guard === "user" && publicDemo)) return;
+  const onReady = (fn) => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", fn) : fn());
+  if (!guard) return;
+  // Bản công khai: ai mở link cũng xem được bảng điều khiển (chế độ Demo), không bắt đăng nhập.
+  // Đã đăng nhập (API giả lập) thì vẫn hiện email + nút Đăng xuất; chưa thì hiện nút Đăng nhập.
+  if (guard === "user" && publicDemo) {
+    const u = token() && user();
+    if (u && u.role === "admin") { document.documentElement.style.visibility = "hidden"; location.replace("admin.html"); return; }
+    onReady(() => renderTopbar(!!u));
+    return;
+  }
 
   if (!token()) { toLogin(); return; }
   // Mỗi vai trò chỉ có MỘT trang: admin → admin.html, user → index.html. Mở nhầm trang thì đưa về đúng trang của mình.
@@ -84,14 +97,18 @@
   // Phiên có thể đã hết hạn ở server. API không phản hồi thì giữ nguyên trang, không đẩy người dùng ra ngoài.
   api("/api/auth/me").then((r) => { if (r.status === 401) toLogin(); }).catch(() => {});
 
-  function renderTopbar() {
+  function renderTopbar(loggedIn = true) {
     const box = document.getElementById("sessionBox");
     if (!box) return;
-    const u = user();
-    document.getElementById("sessionEmail").textContent = u ? u.email : "";
-    document.getElementById("btnLogout").addEventListener("click", logout);
+    const u = loggedIn ? user() : null;
+    const btn = document.getElementById("btnLogout");
+    document.getElementById("sessionEmail").textContent = u ? u.email : "Khách (demo)";
+    if (u) btn.addEventListener("click", logout);
+    else {
+      btn.textContent = "Đăng nhập";
+      btn.addEventListener("click", () => location.assign("login.html"));
+    }
     box.hidden = false;
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", renderTopbar);
-  else renderTopbar();
+  onReady(() => renderTopbar());
 })();

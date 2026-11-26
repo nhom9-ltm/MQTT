@@ -58,6 +58,9 @@ Mở **http://localhost:8080**. Dashboard tự kết nối `ws://localhost:9001`
 Đăng nhập bằng tài khoản `user` rồi mở `index.html?demo=1`. Broker, 20 thiết bị và
 automation engine đều được giả lập trong trình duyệt, dùng cùng topic và cùng luật. Nên dùng làm
 phương án dự phòng khi thuyết trình.
+
+Link công khai <https://nhom9-ltm.github.io/MQTT/> giả lập luôn cả API (`frontend/mock/api.js`), nên đăng nhập,
+đăng ký, trang quản trị, Lịch sử và Tiền điện đều dùng được mà không cần máy chủ — xem [CACH_CHAY.md mục C](CACH_CHAY.md#c-chế-độ-demo-dự-phòng-không-cần-broker).
 </details>
 
 <details>

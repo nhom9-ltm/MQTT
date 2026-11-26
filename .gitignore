@@ -25,3 +25,6 @@ backend/config/scenes.custom.json
 # Chứng chỉ TLS — mỗi máy tự tạo bằng: python infra/broker/gen_certs.py (khóa riêng tuyệt đối không đưa lên GitHub)
 infra/broker/certs/
 firmware/esp32/esp32_smarthome_node/ca_cert.h
+
+# Bản sao cấu hình cho API giả lập (workflow GitHub Pages tự chép từ backend/config)
+frontend/mock/data/

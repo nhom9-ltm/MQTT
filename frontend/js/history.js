@@ -13,6 +13,12 @@
   // Mở bằng file:// thì không có hostname/giao thức http -> dùng thẳng localhost
   const web = location.protocol === "http:" || location.protocol === "https:";
   el.api.value = qs.get("api") || (web ? `${location.protocol}//${location.hostname}:8011` : "http://localhost:8011");
+  // Bản công khai GitHub Pages (hoặc ?mockapi=1): số liệu do mock/api.js sinh ngay trong trình duyệt
+  const MOCK = !!(window.Session && Session.mock);
+  if (MOCK) {
+    el.api.value = "giả lập trong trình duyệt";
+    el.api.readOnly = true;
+  }
   if (qs.get("hours")) el.range.value = qs.get("hours");
 
   const charts = {};
@@ -26,7 +32,7 @@
   }
 
   async function get(path) {
-    const r = await fetch(el.api.value.replace(/\/$/, "") + path);
+    const r = MOCK ? await Session.api(path) : await fetch(el.api.value.replace(/\/$/, "") + path);
     if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 120)}`);
     return r.json();
   }
@@ -202,7 +208,7 @@
         : `<li class="muted">Chưa có cảnh báo</li>`;
       [...el.alerts.querySelectorAll("li span")].forEach((s, i) => { s.textContent = alerts[i].text; });  // textContent: tránh chèn HTML
 
-      setPill("ok", "API OK");
+      setPill("ok", MOCK ? "Dữ liệu mẫu" : "API OK");
     } catch (e) {
       console.error(e);
       setPill("bad", "Lỗi API");

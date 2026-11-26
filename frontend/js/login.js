@@ -27,6 +27,12 @@
 
   // Vừa đăng ký xong (register.html chuyển sang với ?registered=<email>): điền sẵn email và báo thành công
   const registered = new URLSearchParams(location.search).get("registered");
+  if (!registered && Session.mock) {
+    // Bản demo công khai: API chạy giả lập trong trình duyệt, dữ liệu chỉ lưu trên máy người xem
+    $("loginInfo").textContent = "Bản demo: đăng nhập bằng user1@gmail.com / User@1 (người dùng) hoặc " +
+      "admmqtt@gmail.com / Admin@1 (quản trị viên). Dữ liệu chỉ lưu trong trình duyệt của bạn.";
+    $("loginInfo").hidden = false;
+  }
   if (registered) {
     el.email.value = registered;
     $("loginInfo").textContent = `Đăng ký thành công tài khoản ${registered}. Hãy nhập mật khẩu để đăng nhập.`;
